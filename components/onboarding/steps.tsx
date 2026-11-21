@@ -320,6 +320,8 @@ export function LocationStep({ form, set }: StepProps) {
               <input
                 id="square-ha"
                 inputMode="decimal"
+                autoComplete="off"
+                spellCheck={false}
                 value={squareHa}
                 onChange={(e) => setSquareHa(e.target.value)}
                 className="h-11 w-20 rounded-xl border border-line bg-white px-3 text-[16px] text-ink"

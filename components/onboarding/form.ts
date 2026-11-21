@@ -105,6 +105,35 @@ export function fromFarm(row: FarmDTO): Form {
   };
 }
 
+/** The wizard step that holds each saved field (for sending the farmer to the right place after a refused save). */
+const STEP_OF: Record<string, number> = { lat: 0, lon: 0, polygon: 0, name: 0, placeName: 0, areaHa: 1, crop: 1, plantingDate: 1, basinM3: 2, pvKWp: 2, pumpHeadM: 2, wellSafeYieldM3h: 2, waterSource: 2, irrigationMethod: 2, soilTexture: 3, lastIrrigated: 3 };
+
+/** What to tell the farmer, and where to send them, when the server refused the farm (HTTP 422 with its list of issues). */
+export function explainRefusal(issues: { path?: (string | number)[]; message?: string }[] | undefined, t: Dict): { message: string; step: number } | null {
+  const first = issues?.[0];
+  const field = String(first?.path?.[0] ?? "");
+  if (!field) return null;
+  const e = t.onboarding.errors;
+  const step = STEP_OF[field] ?? 0;
+  const message =
+    field === "lat" || field === "lon"
+      ? e.location
+      : field === "areaHa"
+        ? e.area
+        : field === "plantingDate"
+          ? e.planted
+          : field === "basinM3"
+            ? e.basin
+            : field === "pvKWp"
+              ? e.pv
+              : field === "pumpHeadM" || field === "wellSafeYieldM3h"
+                ? e.pump
+                : field === "polygon"
+                  ? /crosses/.test(first?.message ?? "") ? e.outlineCrosses : /size|range/.test(first?.message ?? "") ? e.outlineSize : e.outlineIncomplete
+                  : null;
+  return message ? { message, step } : null;
+}
+
 /** Returns an error message for the step, or null when it can continue. */
 export function validateStep(step: number, f: Form, t: Dict): string | null {
   const e = t.onboarding.errors;

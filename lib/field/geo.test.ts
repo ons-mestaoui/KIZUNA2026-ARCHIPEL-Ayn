@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { bboxOf, checkOutline, isSimplePolygon, localFrame, pointInRing, polygonAreaHa, polygonCentroid, polygonKey, sceneBox, scaleToArea, spanM, squareFromArea } from "./geo";
 import type { LonLat, XY } from "./types";
 
-const here: LonLat = [10.573, 36.687]; // a citrus block near Menzel Bouzelfa
+const here: LonLat = [10.573, 36.687]; // an orchard block near Menzel Bouzelfa
 
 describe("area and centre", () => {
   it("a square built from 1 ha measures 1 ha and is centred where asked", () => {

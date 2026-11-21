@@ -15,7 +15,7 @@ export function ViewSwitch({ view, onChange }: { view: HeroView; onChange: (v: H
           type="button"
           aria-pressed={view === v}
           onClick={() => onChange(v)}
-          className={`h-8 rounded-full px-3.5 text-[13px] font-medium ${view === v ? "bg-ink text-paper" : "text-ink"}`}
+          className={`h-8 rounded-full px-3.5 text-[13px] font-medium ${view === v ? "bg-ink text-paper" : "text-ink hover:bg-ink/10"}`}
         >
           {t.views[v]}
         </button>

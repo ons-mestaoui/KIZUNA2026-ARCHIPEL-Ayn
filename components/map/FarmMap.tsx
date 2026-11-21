@@ -147,6 +147,7 @@ export default function FarmMap({
             key={i}
             position={toLatLng(c)}
             icon={i === 0 ? firstCornerIcon : cornerIcon}
+            keyboard={false}
             draggable
             eventHandlers={{
               drag: (e) => {

@@ -8,13 +8,38 @@ last watering) and gets:
 
 | | |
 |---|---|
-| **Today** | Water or not, how many m³, and *when* — with a 3D digital twin of the farm that follows the sun |
+| **Today** | Water or not, how many m³, and *when* — with the farmer's **own field in 3D, seen from space** (zones, greenness, leaf water) or the digital twin of the water system |
 | **Week** | A 7-day plan; every day assumes the farmer followed the one before |
 | **Leaf check** | A photo of a sick leaf → likely cause, safe actions, honest confidence, spoken aloud |
 | **Ask** | A chat in Arabic (Tunisian Derja), French, Japanese or English, with optional photo and voice |
-| **Satellite** | Rain, soil moisture, ground temperature and greenness from JAXA satellites, plus Sentinel-2 imagery |
+| **Satellite** | The field's own pass-by-pass history (Sentinel-2, 10 m) above rain, soil moisture, ground temperature and greenness from JAXA satellites |
 
 The interface is in **English, العربية (RTL) and 日本語**; the AI answers in whatever language the farmer writes.
+
+## Your field from space
+
+The farmer **outlines their field on the map** (tap the corners, or start from a square of N hectares). The app
+then shows that field in 3D: the real photo, the boundary as a gold wall, the world around it veiled, and the
+satellite data on top.
+
+* **Data:** Sentinel-2 L2A through the free [Copernicus Data Space](https://dataspace.copernicus.eu) account
+  (the app asks for NDVI and NDMI at 10 m, one clear pass and one about two weeks earlier), photo tiles from
+  Esri World Imagery shown with attribution, terrain heights from open Terrarium tiles. The server only
+  downloads a history of passes and two small index pictures per field, cached for hours (`lib/server/field.ts`).
+* **Layers:** *Zones* (the field split into 2–4 patches that behave differently, named A, B, C from the
+  north-west), *Greenness* (NDVI), *Leaf water* (NDMI), *Photo*. Colours are built in OKLCH with even lightness
+  steps; the zone scale (amber ↔ grey ↔ teal) is tested to stay readable for red-green colour-blind readers.
+* **Advice, in rules not AI** (`lib/field/advice.ts`): *"Water zone B first"* only when the plan says to water
+  today **and** the zone is low on both greenness and leaf water; otherwise *"Check zone B first"*. The plan
+  still decides how much water; the card only orders where it goes. When the zone looked the same on the earlier
+  pass it says so (thin canopy, young trees or a sandy patch, not new thirst).
+* **What it can't tell:** greenness and leaf water come from 10 m pixels (1 ha ≈ 100 pixels, under 0.25 ha
+  there are no zones). They show where plants look different, **not how much water is in the soil**. Clouds
+  hide the field for days; the view shows the date of the newest usable pass.
+* **Get the keys (free):** sign in at dataspace.copernicus.eu, open the Sentinel Hub dashboard
+  (shapps.dataspace.copernicus.eu/dashboard) → *User settings* → *OAuth clients* → *Create*, and put the client id
+  and secret in `.env.local` as `CDSE_CLIENT_ID` and `CDSE_CLIENT_SECRET`. The secret is shown once. Without
+  them the field view says the satellite could not be reached and everything else keeps working.
 
 ## How the plan is made
 
@@ -51,6 +76,7 @@ Open the page → *Create your farm account* → pick a place → get a plan.
 | `BETTER_AUTH_TRUSTED_ORIGINS` | Other addresses allowed to sign in, comma-separated, `*` matches one part — e.g. phones on the Wi-Fi: `http://192.168.*.*:3000` (see *Phones on the same Wi-Fi*) |
 | `DATABASE_URL` | Default `file:data/local.db`. Production: the Turso `libsql://…` URL |
 | `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | What the Vercel ↔ Turso integration injects (used if `DATABASE_URL` is unset) |
+| `CDSE_CLIENT_ID`, `CDSE_CLIENT_SECRET` | Copernicus Data Space OAuth client (free), for the satellite view of the farmer's field. Server only, never `NEXT_PUBLIC_`. Hourly request cap built in (`lib/server/copernicus.ts`) |
 | `GEMINI_API_KEY` | Google AI Studio key (free tier). Leaf check and Ask need it |
 | `GEMINI_API_KEY_DEMO` | Optional second key used only by the demo account, so judges can't use up the pitch's quota |
 | `GEMINI_MODELS_CHAT`, `GEMINI_MODELS_VISION_FAST`, `GEMINI_MODELS_VISION_STRONG` | Optional comma-separated model chains (defaults in `lib/server/gemini.ts`) |
@@ -75,6 +101,17 @@ data) with a **virtual soil sensor** — pour water and watch the twin and the p
 judges can sign up on their own phones. Leaf check, Ask and Satellite are the real features on the demo farm.
 The Arduino idea became this virtual sensor.
 
+The demo opens on the **real field view**: a 1 ha orchard block about 1.4 km north-west of the centre of Menzel Bouzelfa (the demo farm's crop is citrus), seen
+by Sentinel-2 on **18 and 23 July 2026** (before and after the heatwave; *Today's forecast* switches to the
+two latest passes). The soil sensor is drawn as a pin inside the healthiest zone ("one sensor sees one spot, the
+satellite sees every zone") and the zone card follows the plan: on the dry heatwave day it says *Water zone C
+first*, after you pour water it only says *Check zone C first*. The change between the two July passes is small
+and noisy (citrus is evergreen); the strength of the demo is the **zones inside the field**, which repeat on
+every date. The field is exactly 1 ha so the pitch's numbers (80 m³ basin, 3 kWp, the savings) are unchanged.
+
+The satellite data of the demo is **bundled** (`data/demo/field.json`, `public/demo/field-photo.jpg`), so the
+demo never calls Copernicus. To refresh it (needs the `CDSE_*` keys): `npm run snapshot:field`.
+
 ## If the Wi-Fi misbehaves during the pitch
 
 * **Saved answers.** Start the server with `DEMO_OFFLINE=1` and the demo account answers the Leaf check and
@@ -82,7 +119,9 @@ The Arduino idea became this virtual sensor.
   *Saved demo answer* label, so nobody mistakes it for the live AI. Check it with
   `node scripts/smoke-offline.mjs <url>`.
 * **Works with no internet at all:** the 3D twin, the plan, the virtual soil sensor and the heatwave day. They
-  run on weather snapshots bundled with the app.
+  run on weather snapshots bundled with the app. So does the demo's **field view**: zones, terrain, the card and
+  the sensor pin come from the bundle; only the crisp Esri photo needs internet, and without it the ground
+  falls back to the softer bundled Sentinel-2 picture (checked in the browser with every outside request refused).
 * **Needs internet:** the live AI, map tiles, the Satellite tab and the server voice. With no connection each
   satellite card says it could not reach the data and offers *Try again*; an outage is never remembered, so the
   cards recover by themselves when the network returns. *Listen* falls back to the device's own voice (how good
@@ -104,9 +143,10 @@ The Arduino idea became this virtual sensor.
 ## Tests
 
 ```bash
-npm test                                   # 49 engine tests
-node scripts/smoke-auth.mjs  <url> --deep  # sign-up / sign-in / sign-out, guarded pages, database + live Gemini / voice / JAXA
+npm test                                   # 200+ unit tests: the engine, plus the field maths (geometry, zones, advice, colours, tiles, terrain, the Copernicus client with a mocked network)
+node scripts/smoke-auth.mjs  <url> --deep  # sign-up / sign-in / sign-out, guarded pages, database + live Gemini / voice / JAXA / Copernicus
 node scripts/smoke-farm.mjs  <url>         # farm API, 7-day plan, logging, isolation between farmers
+node scripts/smoke-field.mjs <url>         # field outline rules, the live Sentinel-2 payload, privacy between farmers, no secrets in responses
 node scripts/smoke-demo.mjs  <url>         # demo door, reset, isolation
 node scripts/smoke-chat.mjs  <url>         # chat in four languages
 node scripts/smoke-offline.mjs <url>       # the demo's saved answers (server started with DEMO_OFFLINE=1)
@@ -126,8 +166,10 @@ node scripts/browser/run-all.mjs http://localhost:3000
 node scripts/browser/run-all.mjs http://localhost:3000 --photo=leaf.jpg --lan=http://192.168.1.20:3000
 ```
 
-They sign up, onboard, read the plan and press the buttons on a phone-sized touch screen and on a desktop, in
-English, Arabic (right to left) and Japanese, and fail on console errors or sideways scrolling. `--photo` (a
+They sign up, onboard (including drawing a field outline by tapping the map), read the plan, turn the 3D field
+and press the buttons on a phone-sized touch screen and on a desktop, in English, Arabic (right to left) and
+Japanese, and fail on console errors or sideways scrolling. The field suites also check that today's decision
+stays above the fold, that a saved copy of the view shows with no signal, and that sign-out removes it. `--photo` (a
 photo of a tomato leaf with Tuta absoluta damage) adds the Leaf check and Ask suites, which use the live AI
 and a little of the free quota; `--lan` adds the "phone on the Wi-Fi" check. Screenshots go to `browser-out/`.
 
@@ -164,7 +206,10 @@ Phones browsing plain `http://` cannot use *Use my location* (browsers require H
    `$env:ENV_FILE=".env.production.local"; npx drizzle-kit push` to create the tables on Turso.
 4. Add the other variables in Vercel: `BETTER_AUTH_SECRET` (a **new** one), `BETTER_AUTH_URL`
    (`https://<project>.vercel.app`), `GEMINI_API_KEY`, optionally `GEMINI_API_KEY_DEMO`, `DEMO_ENTRY=1` and
-   `DEMO_PASSWORD`. Do not set `BETTER_AUTH_TRUSTED_ORIGINS` there.
+   `DEMO_PASSWORD`, and **`CDSE_CLIENT_ID` / `CDSE_CLIENT_SECRET`** for the satellite field view (make a fresh
+   OAuth client for production, and delete the one used while building). Do not set
+   `BETTER_AUTH_TRUSTED_ORIGINS` there. The database needs the `farm.polygon` column: step 3's `drizzle-kit push`
+   adds it (run it again after any schema change).
 5. `npx vercel --prod`, then run all `smoke-*` scripts against the new URL.
 6. Check the Derja voice from the server: it uses the unofficial Edge read-aloud service, which may refuse
    datacenter addresses. If so the *Listen* button falls back to the browser's own voice (set
@@ -175,8 +220,13 @@ Phones browsing plain `http://` cannot use *Use my location* (browsers require H
 * Weather: [Open-Meteo](https://open-meteo.com) (CC BY 4.0) — forecast, ERA5 archive, geocoding
 * Satellites: **JAXA Earth API** — GPM/GSMaP rain, GCOM-W/AMSR2 soil moisture, GCOM-C/SGLI land surface
   temperature and NDVI
-* Maps: OpenStreetMap · Esri World Imagery · [Sentinel-2 cloudless](https://s2maps.eu) by EOX IT Services
+* Satellite field view: **Copernicus Sentinel-2 L2A** (contains modified Copernicus Sentinel data 2026) through the
+  [Copernicus Data Space Ecosystem](https://dataspace.copernicus.eu), free and open
+* Maps: OpenStreetMap · Esri World Imagery (tiles © Esri, Maxar, Earthstar Geographics, shown live with
+  attribution, never copied into the repository) · [Sentinel-2 cloudless](https://s2maps.eu) by EOX IT Services
   (contains modified Copernicus Sentinel data 2024, CC BY-NC-SA 4.0 — **non-commercial**)
+* Terrain: [Terrain Tiles on AWS](https://registry.opendata.aws/terrain-tiles/) (Mapzen / Tilezen; built from
+  SRTM, ASTER and other open elevation data — see their attribution page)
 * Method: FAO Irrigation & Drainage Paper 56
 * AI: Google Gemini · Voice: Microsoft Edge neural voices (`ar-TN`, `ja-JP`, `en-GB`, `fr-FR`)
 
@@ -185,7 +235,12 @@ Phones browsing plain `http://` cannot use *Use my location* (browsers require H
 * A water-balance **estimate**, not a measurement: it improves when the farmer logs watering and does the
   squeeze test. It is not a substitute for an agricultural adviser (the app says so, and never gives pesticide
   doses).
-* Satellite values describe one pixel (2.2 km for temperature and greenness, about 9 km for rain and soil
+* The **field view** is Sentinel-2 at 10 m: good for telling patches of one field apart, not for single rows or
+  trees. Greenness and leaf water are not soil moisture, and a weak zone can simply be young trees, gaps or
+  weeds (the card says so and asks the farmer to look). The terrain is a 30 m model, exaggerated to read at this
+  scale (the exaggeration is printed on the picture). Esri's photo is current imagery of varying age and sharpness;
+  where it has none at a zoom the app falls back to a coarser one.
+* The other satellite cards describe one pixel (2.2 km for temperature and greenness, about 9 km for rain and soil
   moisture), not the field. Soil moisture has no reading over water, so near the coast the nearest land pixel
   can be tens of km away; the Satellite tab shows that distance. Rain arrives about 5 days late, soil moisture 2.
 * The free Gemini tier is shared and sometimes overloaded: answers come from a fast model first, with a

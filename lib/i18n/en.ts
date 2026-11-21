@@ -97,6 +97,7 @@ export const en = {
       planted: "Pick the planting date.",
       basin: "Enter the basin volume.",
       pv: "Enter the panel power.",
+      pump: "Check the pump details: the lift (1–300 m) and the safe well flow (up to 1,000 m³/h).",
       outlineIncomplete: "Finish the outline (at least 3 corners) or clear it.",
       outlineCrosses: "The outline crosses itself. Drag a corner to untangle it.",
       outlineSize: "The outline is too small or too large to be one field.",

@@ -181,7 +181,7 @@ export default function FieldHero({
                 aria-pressed={frameIdx === i}
                 aria-label={`${t.field.passes.label} ${short(f.date)}`}
                 onClick={() => ui.setFrame(i)}
-                className={`tabular h-8 rounded-full px-3 text-[13px] ${frameIdx === i ? "bg-ink font-semibold text-paper" : "text-ink"}`}
+                className={`tabular h-8 rounded-full px-3 text-[13px] ${frameIdx === i ? "bg-ink font-semibold text-paper" : "text-ink hover:bg-ink/10"}`}
               >
                 {short(f.date)}
               </button>
@@ -214,12 +214,12 @@ export default function FieldHero({
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-1 p-3 pt-0">
         <div role="group" aria-label={t.field.layersLabel} className="pointer-events-auto flex w-fit max-w-full gap-1.5 overflow-x-auto rounded-full bg-paper/92 p-1 shadow-sm">
           {layers.map((l) => (
-            <button key={l} type="button" aria-pressed={layer === l} onClick={() => ui.setLayer(l)} className={`${chip} h-9 shrink-0 px-3.5 shadow-none ${layer === l ? "bg-ink text-paper" : "text-ink"}`}>
+            <button key={l} type="button" aria-pressed={layer === l} onClick={() => ui.setLayer(l)} className={`${chip} h-9 shrink-0 px-3.5 shadow-none ${layer === l ? "bg-ink text-paper" : "text-ink hover:bg-ink/10"}`}>
               {t.field.layers[l]}
             </button>
           ))}
         </div>
-        <p className="w-fit max-w-full truncate rounded-full bg-paper/75 px-2 py-0.5 text-[10px] leading-tight text-ink-soft" dir="ltr">
+        <p className="w-fit max-w-full truncate rounded-full bg-paper/75 px-2 py-0.5 text-[10px] leading-tight text-ink-soft" dir="ltr" translate="no">
           {CREDIT}
           {exag > 1 && <> · {fmt(t.field.relief, { n: exag.toFixed(1) })}</>}
         </p>

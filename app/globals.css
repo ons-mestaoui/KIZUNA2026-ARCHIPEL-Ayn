@@ -49,6 +49,13 @@
   --font-sans: var(--font-readex), var(--font-noto-jp), system-ui, sans-serif;
 }
 
+button,
+a,
+summary,
+label {
+  touch-action: manipulation; /* taps act at once: no double-tap-zoom delay */
+}
+
 html,
 body {
   background: var(--limewash);

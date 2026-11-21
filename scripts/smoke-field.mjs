@@ -50,7 +50,7 @@ const farmBody = (over = {}) => ({
   ...over,
 });
 
-// a 100 m × 100 m square on a citrus block near Menzel Bouzelfa (0.0011° of longitude ≈ 100 m at 36.7°N, 0.0009° of latitude)
+// a 100 m × 100 m square on an orchard block near Menzel Bouzelfa (0.0011° of longitude ≈ 100 m at 36.7°N, 0.0009° of latitude)
 const C = [10.573, 36.687];
 const square = (dx = 0.0011, dy = 0.0009) => [
   [C[0] - dx / 2, C[1] + dy / 2],

@@ -12,7 +12,7 @@ describe("web mercator", () => {
     }
   });
   it("matches the tile the real service served for the demo orchard at zoom 18", () => {
-    // verified against server.arcgisonline.com: this tile shows the citrus block (the 'alignment gate' photos)
+    // verified against server.arcgisonline.com: this tile shows the orchard block (the 'alignment gate' photos)
     const x = Math.floor(lonToX(10.573, 18) / 256);
     const y = Math.floor(latToY(36.687, 18) / 256);
     expect([x, y]).toEqual([138771, 102319]);

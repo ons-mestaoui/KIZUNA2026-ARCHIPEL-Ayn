@@ -133,6 +133,12 @@ function World({ field, texture, heights, chips, pins = NO_PINS, intro, onRelief
   const v = useMemo(() => new THREE.Vector3(), []);
   const zoneCount = field.zones?.list.length ?? 0;
   const spots = useMemo(() => anchors.map((_, i) => ({ x: 0, y: 0, on: true, r: CHIP_R, pin: i >= zoneCount })), [anchors, zoneCount]);
+  // pins are wider than a zone chip: measure them when they change, not every frame (no layout reads while animating)
+  useEffect(() => {
+    spots.forEach((p, i) => {
+      if (p.pin) p.r = Math.max(CHIP_R, (chips.current[i]?.offsetWidth ?? 0) / 2);
+    });
+  }, [spots, chips]);
   useFrame((state) => {
     if (!ready) {
       started.current ??= state.clock.elapsedTime;
@@ -151,7 +157,6 @@ function World({ field, texture, heights, chips, pins = NO_PINS, intro, onRelief
       spots[i].x = ((v.x + 1) / 2) * state.size.width;
       spots[i].y = ((1 - v.y) / 2) * state.size.height;
       spots[i].on = v.z < 1;
-      spots[i].r = spots[i].pin ? Math.max(CHIP_R, (chips.current[i]?.offsetWidth ?? 0) / 2) : CHIP_R;
     });
     for (let pass = 0; pass < 4; pass++) {
       for (let i = 0; i < spots.length; i++) {

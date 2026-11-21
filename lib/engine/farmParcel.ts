@@ -42,12 +42,17 @@ export function parcelFromFarm(f: FarmInput): ParcelConfig {
   };
 }
 
-/** Sensible starting values for the onboarding form, scaled to the farm size. */
+/**
+ * Sensible starting values for the onboarding form, scaled to the farm size. They are also what gets saved when the
+ * farmer leaves the pump details empty, so they must stay inside what the server accepts (lib/farm-schema.ts: basin
+ * 5,000 m³, panels 500 kWp, well 1,000 m³/h): without the caps a field of more than about 50 ha was estimated past
+ * the limits and could not be saved at all.
+ */
 export function defaultsFor(areaHa: number) {
   return {
-    basinM3: Math.max(20, Math.round(areaHa * 60)),
-    pvKWp: Math.max(1, Math.round(areaHa * 3 * 10) / 10),
+    basinM3: Math.min(5000, Math.max(20, Math.round(areaHa * 60))),
+    pvKWp: Math.min(500, Math.max(1, Math.round(areaHa * 3 * 10) / 10)),
     pumpHeadM: 15,
-    wellSafeYieldM3h: Math.max(8, Math.round(areaHa * 20)),
+    wellSafeYieldM3h: Math.min(1000, Math.max(8, Math.round(areaHa * 20))),
   };
 }

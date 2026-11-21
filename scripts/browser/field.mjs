@@ -1,5 +1,5 @@
 // The real field in 3D, in the farmer app.   node scripts/browser/field.mjs <base> <outDir> [lang]
-// Signs up, gives the farm an outline on a citrus block (the satellite view is live Copernicus data), and checks the
+// Signs up, gives the farm an outline on an orchard block (the satellite view is live Copernicus data), and checks the
 // Today tab: the hero, layers, passes, zone chips, the Field | Model switch, layout on a phone and on a desktop.
 import puppeteer from "puppeteer-core";
 
@@ -26,7 +26,7 @@ const shot = async (name, hero = false) => {
   await page.screenshot({ path: `${out}/field-${lang}-${name}.png`, ...(clip ? { clip } : { fullPage: false }) });
 };
 
-// the farm: 1 ha square on a mature citrus block 1.2 km west of the Menzel Bouzelfa town centre
+// the farm: 1 ha square on an orchard block 1.2 km west of the Menzel Bouzelfa town centre
 const C = [10.5729, 36.687];
 const polygon = [[C[0] - 0.00055, C[1] + 0.00045], [C[0] + 0.00055, C[1] + 0.00045], [C[0] + 0.00055, C[1] - 0.00045], [C[0] - 0.00055, C[1] - 0.00045]];
 

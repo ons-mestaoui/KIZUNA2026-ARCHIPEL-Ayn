@@ -63,7 +63,7 @@ ok(r.status === 401, "deep health refuses anonymous callers", `HTTP ${r.status}`
 if (process.argv.includes("--deep")) {
   r = await call("/api/health/deep");
   const deep = await r.json().catch(() => ({}));
-  for (const k of ["ai", "tts", "jaxa"]) ok(deep?.[k]?.ok === true, `${k} works from this host`, `${deep?.[k]?.ms ?? "?"} ms — ${deep?.[k]?.detail ?? ""}`);
+  for (const k of ["ai", "tts", "jaxa", "copernicus"]) ok(deep?.[k]?.ok === true, `${k} works from this host`, `${deep?.[k]?.ms ?? "?"} ms — ${deep?.[k]?.detail ?? ""}`);
 }
 
 r = await call("/api/auth/sign-up/email", { method: "POST", body: JSON.stringify({ name: "Dup", email, password }) });

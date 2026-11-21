@@ -9,7 +9,7 @@ import { Logo } from "@/components/Logo";
 import type { FarmDTO } from "@/lib/farm-types";
 import { fmt } from "@/lib/i18n";
 import { useLang, useT } from "@/lib/i18n/useLang";
-import { type Form, fromFarm, initialForm, todayISO, toPayload, validateStep } from "./form";
+import { type Form, explainRefusal, fromFarm, initialForm, todayISO, toPayload, validateStep } from "./form";
 import { CropStep, LocationStep, SoilStep, WaterStep } from "./steps";
 
 const STEPS = 4;
@@ -70,6 +70,18 @@ export function Wizard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(toPayload(form, lang, t.onboarding.location.farmNameDefault)),
       });
+      if (res.status === 422) {
+        // the server refused a value: say which, and go to the step that holds it
+        const body = (await res.json().catch(() => null)) as { issues?: { path?: (string | number)[]; message?: string }[] } | null;
+        const why = explainRefusal(body?.issues, t);
+        if (why) {
+          setStep(why.step);
+          setError(why.message);
+          setSaving(false);
+          window.scrollTo({ top: 0 });
+          return;
+        }
+      }
       if (!res.ok) throw new Error(String(res.status));
       router.push("/app");
       router.refresh();
