@@ -294,6 +294,47 @@ export const ja: Dict = {
       photo: "その写真を読み込めませんでした。別の写真を選んでください。",
     },
   },
+  satellite: {
+    title: "宇宙から見るあなたの農園",
+    intro: "日本とヨーロッパの衛星のデータです。値は農園そのものではなく、周辺のピクセルのものです。",
+    mapTitle: "衛星画像",
+    layers: { satellite: "衛星写真", sentinel: "Sentinel-2" },
+    metrics: {
+      rain: {
+        title: "雨量",
+        sat: "GPM · GSMaP · JAXA",
+        meaning: "農園周辺で毎日降った雨の量です。予報の確認に使えます。このデータは約5日遅れで届きます。",
+      },
+      soil: {
+        title: "土壌水分",
+        sat: "GCOM-W · AMSR2 · JAXA",
+        meaning: "表層数センチの土の水分を約10 kmで平均した値です。根域ではなく、地域全体の目安です。",
+      },
+      heat: {
+        title: "地表温度",
+        sat: "GCOM-C · SGLI · JAXA",
+        meaning: "地面や葉の温度です。乾いた日に気温よりかなり高いときは、ストレスのサインです。",
+      },
+      ndvi: {
+        title: "緑の度合い（NDVI）",
+        sat: "GCOM-C · SGLI · JAXA",
+        meaning: "植生の緑の濃さです。目安は、裸地 約0.2、健康な作物 約0.5、濃い緑 約0.8。",
+      },
+    },
+    away: "農園から {km} km",
+    pixel: "ピクセルの大きさ {km} km",
+    total: "{n}日間で {mm} mm",
+    noReading: "ここ数日は、はっきりした値がありません（雲や衛星の観測の隙間のため）。",
+    loading: "衛星データを読み込み中…",
+    error: "衛星データに接続できませんでした。",
+    retry: "もう一度",
+    numbers: "数値を表示",
+    date: "日付",
+    value: "値",
+    missing: "値なし",
+    credit:
+      "データ：JAXA Earth API（GPM/GSMaP、GCOM-W/AMSR2、GCOM-C/SGLI）。画像：Esri、EOX の Sentinel-2 cloudless（Copernicus Sentinel データ 2024 を加工）。",
+  },
   shell: {
     hello: "{name} さん、こんにちは",
     tabs: {

@@ -61,23 +61,28 @@ export default function FarmMap({
   layer,
   fly,
   onPick,
+  readOnly = false,
+  zoom,
 }: {
   lat: number | null;
   lon: number | null;
   layer: LayerId;
   fly: FlyTarget | null;
   onPick: (lat: number, lon: number) => void;
+  /** Show the farm only: no dragging the pin, no tap-to-move, no accidental wheel zoom. */
+  readOnly?: boolean;
+  zoom?: number;
 }) {
   const has = lat !== null && lon !== null;
   const l = MAP_LAYERS[layer];
   return (
-    <MapContainer center={has ? [lat, lon] : [34.0, 9.6]} zoom={has ? 15 : 6} scrollWheelZoom className="h-full w-full">
+    <MapContainer center={has ? [lat, lon] : [34.0, 9.6]} zoom={zoom ?? (has ? 15 : 6)} scrollWheelZoom={!readOnly} className="h-full w-full">
       <TileLayer key={layer} url={l.url} attribution={l.attribution} maxZoom={l.maxZoom} maxNativeZoom={l.maxNativeZoom} />
       {has && (
         <Marker
           position={[lat, lon]}
           icon={dropIcon}
-          draggable
+          draggable={!readOnly}
           eventHandlers={{
             dragend: (e) => {
               const p = (e.target as L.Marker).getLatLng();
@@ -86,7 +91,7 @@ export default function FarmMap({
           }}
         />
       )}
-      <Clicker onPick={onPick} />
+      {!readOnly && <Clicker onPick={onPick} />}
       <Fly target={fly} />
     </MapContainer>
   );

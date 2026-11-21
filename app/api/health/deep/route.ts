@@ -1,6 +1,6 @@
 import { connection } from "next/server";
 import { generateWithFallback, CHAT_MODELS } from "@/lib/server/gemini";
-import { COLLECTIONS, latestDaily } from "@/lib/server/jaxa";
+import { DATASETS, readSeries } from "@/lib/server/jaxa";
 import { getUser, unauthorized } from "@/lib/server/session";
 import { VOICES, synthesize } from "@/lib/server/tts";
 
@@ -37,9 +37,10 @@ export async function GET(request: Request) {
     }),
     probe(async () => {
       // Cap Bon, Tunisia
-      const r = await latestDaily(COLLECTIONS.soilMoisture, 36.68, 10.58);
-      if (!r) throw new Error("no valid AMSR2 soil-moisture pixel near the farm in the last week");
-      return `AMSR2 soil moisture ${r.value.toFixed(1)} % on ${r.day}, pixel ${r.distKm.toFixed(0)} km away`;
+      const { points } = await readSeries(DATASETS.soil, 36.7, 10.6, 2);
+      const latest = [...points].reverse().find((p) => p.value !== null);
+      if (!latest) throw new Error("no valid AMSR2 soil-moisture pixel near the farm in the last days");
+      return `AMSR2 soil moisture ${latest.value!.toFixed(1)} % on ${latest.date}, pixel ${latest.distKm!.toFixed(0)} km away`;
     }),
   ]);
 

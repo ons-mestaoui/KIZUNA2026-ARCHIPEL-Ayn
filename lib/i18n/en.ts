@@ -292,6 +292,47 @@ export const en = {
       photo: "Could not read that photo. Choose another one.",
     },
   },
+  satellite: {
+    title: "Your farm from space",
+    intro: "Japanese and European satellites. Each reading covers a pixel around your farm, not your exact field.",
+    mapTitle: "Satellite view",
+    layers: { satellite: "Satellite", sentinel: "Sentinel-2" },
+    metrics: {
+      rain: {
+        title: "Rain",
+        sat: "GPM · GSMaP · JAXA",
+        meaning: "Rain that fell around your farm each day. Use it to check the forecast. This product arrives about 5 days late.",
+      },
+      soil: {
+        title: "Soil moisture",
+        sat: "GCOM-W · AMSR2 · JAXA",
+        meaning: "Moisture in the top few centimetres of soil, averaged over about 10 km. A regional signal, not your root zone.",
+      },
+      heat: {
+        title: "Ground temperature",
+        sat: "GCOM-C · SGLI · JAXA",
+        meaning: "How hot the ground and the leaves are. Far above the air temperature on a dry day means stress.",
+      },
+      ndvi: {
+        title: "Greenness (NDVI)",
+        sat: "GCOM-C · SGLI · JAXA",
+        meaning: "How green the vegetation is: about 0.2 bare soil, 0.5 healthy crops, 0.8 dense green.",
+      },
+    },
+    away: "{km} km from your farm",
+    pixel: "Pixel size {km} km",
+    total: "{mm} mm in {n} days",
+    noReading: "No clear reading in the last days (clouds or satellite gaps).",
+    loading: "Reading the satellites…",
+    error: "Could not reach the satellite data.",
+    retry: "Try again",
+    numbers: "Show the numbers",
+    date: "Date",
+    value: "Value",
+    missing: "no clear reading",
+    credit:
+      "Data: JAXA Earth API (GPM/GSMaP, GCOM-W/AMSR2, GCOM-C/SGLI). Imagery: Esri; Sentinel-2 cloudless by EOX (contains modified Copernicus Sentinel data 2024).",
+  },
   shell: {
     hello: "Hello, {name}",
     tabs: {

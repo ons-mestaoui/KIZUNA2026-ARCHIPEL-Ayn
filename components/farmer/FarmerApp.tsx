@@ -10,6 +10,7 @@ import { useLocale, useT } from "@/lib/i18n/useLang";
 import { AskTab } from "./AskTab";
 import { FarmTab } from "./FarmTab";
 import { LeafTab } from "./LeafTab";
+import { SatelliteTab } from "./SatelliteTab";
 import { TodayTab } from "./TodayTab";
 import { useFarmState } from "./useFarmState";
 import { WeekTab } from "./WeekTab";
@@ -104,12 +105,7 @@ export function FarmerApp() {
                 {tab === "farm" && <FarmTab state={state} />}
                 {tab === "leaf" && <LeafTab />}
                 {tab === "ask" && <AskTab />}
-                {tab === "satellite" && (
-                  <section className="px-4 py-6">
-                    <h2 className="text-[22px] font-semibold tracking-tight">{t.shell.tabs[tab]}</h2>
-                    <p className="mt-2 text-ink-soft">{t.shell.soon}</p>
-                  </section>
-                )}
+                {tab === "satellite" && <SatelliteTab lat={state.farm.lat} lon={state.farm.lon} />}
               </div>
             )}
           </>
