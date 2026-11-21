@@ -82,7 +82,9 @@ export const farm = sqliteTable("farm", {
   placeName: text("place_name"),
   crop: text("crop").notNull(), // CropId
   plantingDate: text("planting_date"), // YYYY-MM-DD (annual crops)
-  areaHa: real("area_ha").notNull(),
+  areaHa: real("area_ha").notNull(), // from the outline when there is one
+  /** The outline the farmer drew: [lon, lat] corners, not closed. Null = only a pin on the map. */
+  polygon: text("polygon", { mode: "json" }).$type<[number, number][]>(),
   soilTexture: text("soil_texture").notNull(), // SoilTexture
   irrigationMethod: text("irrigation_method").notNull(), // drip | sprinkler | surface
   waterSource: text("water_source").notNull(), // solar_basin | solar_direct | grid | diesel | network

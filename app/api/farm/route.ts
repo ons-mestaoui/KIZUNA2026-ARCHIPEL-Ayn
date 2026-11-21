@@ -1,5 +1,6 @@
 import { db, schema } from "@/lib/db";
 import { farmInputSchema } from "@/lib/farm-schema";
+import { polygonAreaHa, polygonCentroid } from "@/lib/field/geo";
 import { getFarm, getUser, unauthorized } from "@/lib/server/session";
 
 // The caller's farm. userId always comes from the session — never from the request body.
@@ -19,14 +20,18 @@ export async function PUT(request: Request) {
     return Response.json({ error: "invalid", issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }, { status: 422 });
   }
   const v = parsed.data;
+  // An outline is the source of truth for where the farm is and how big: never trust numbers sent next to it.
+  const outline = v.polygon ?? null;
+  const [lon, lat] = outline ? polygonCentroid(outline) : [v.lon, v.lat];
   const values = {
     name: v.name,
-    lat: v.lat,
-    lon: v.lon,
+    lat: outline ? Math.round(lat * 1e6) / 1e6 : lat,
+    lon: outline ? Math.round(lon * 1e6) / 1e6 : lon,
     placeName: v.placeName ?? null,
     crop: v.crop,
     plantingDate: v.plantingDate ?? null,
-    areaHa: v.areaHa,
+    areaHa: outline ? Math.round(polygonAreaHa(outline) * 100) / 100 : v.areaHa,
+    polygon: outline ? outline.map(([x, y]) => [Math.round(x * 1e6) / 1e6, Math.round(y * 1e6) / 1e6] as [number, number]) : null,
     soilTexture: v.soilTexture,
     irrigationMethod: v.irrigationMethod,
     waterSource: v.waterSource,

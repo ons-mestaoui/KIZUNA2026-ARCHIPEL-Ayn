@@ -1,4 +1,6 @@
 import { connection } from "next/server";
+import { squareFromArea } from "@/lib/field/geo";
+import { cdse } from "@/lib/server/copernicus";
 import { generateWithFallback, CHAT_MODELS } from "@/lib/server/gemini";
 import { DATASETS, readSeries } from "@/lib/server/jaxa";
 import { getUser, unauthorized } from "@/lib/server/session";
@@ -24,7 +26,7 @@ export async function GET(request: Request) {
   await connection();
   if (!(await getUser(request))) return unauthorized();
 
-  const [ai, tts, jaxa] = await Promise.all([
+  const [ai, tts, jaxa, copernicus] = await Promise.all([
     probe(async () => {
       const { response, model } = await generateWithFallback(CHAT_MODELS, "public", {
         contents: "Reply with the single word: ok",
@@ -43,7 +45,15 @@ export async function GET(request: Request) {
       if (!latest) throw new Error("no valid AMSR2 soil-moisture pixel near the farm in the last days");
       return `AMSR2 soil moisture ${latest.value!.toFixed(1)} % on ${latest.date}, pixel ${latest.distKm!.toFixed(0)} km away`;
     }),
+    probe(async () => {
+      // the Sentinel-2 field view: sign in, then read the field-level history of a 1 ha square in Cap Bon
+      const now = new Date();
+      const series = await cdse().series(squareFromArea([10.573, 36.687], 1), new Date(now.getTime() - 21 * 86_400_000), now);
+      if (!series.length) throw new Error("Copernicus answered but listed no Sentinel-2 pass in the last 3 weeks");
+      const newest = series.at(-1)!;
+      return `Sentinel-2: ${series.length} passes in 3 weeks, newest ${newest.date} (${Math.round(newest.clear * 100)} % clear)`;
+    }),
   ]);
 
-  return Response.json({ ok: ai.ok && tts.ok && jaxa.ok, ai, tts, jaxa });
+  return Response.json({ ok: ai.ok && tts.ok && jaxa.ok && copernicus.ok, ai, tts, jaxa, copernicus });
 }
