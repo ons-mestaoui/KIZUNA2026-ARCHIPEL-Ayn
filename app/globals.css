@@ -1,26 +1,100 @@
 @import "tailwindcss";
 
+/*
+  Goutte d'Or tokens
+  limewash  — Tunisian whitewashed wall, readable in full sun
+  ink       — ai-zome indigo (藍), echoes Nabeul cobalt pottery: the Kizuna link
+  sun       — the golden drop: solar energy
+  water     — irrigation basin turquoise
+  leaf      — citrus leaf
+  soil-dry / soil-wet — the root-zone scale the whole app is about
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --limewash: #eef1ec;
+  --paper: #fbfcfa;
+  --ink: #17264a;
+  --ink-soft: #55607a;
+  --line: #d5dbd3;
+  --sun: #e3a21a;
+  --sun-deep: #a86f00;
+  --water: #0b90b5;
+  --water-deep: #0b5f6d;
+  /* chart marks — validated (dataviz validator, light, on limewash): CVD ΔE 19.9 */
+  --mark-sun: #cc8a00;
+  --mark-water: #0b90b5;
+  --mark-ghost: #c3cad6;
+  --leaf: #2e6b3b;
+  --soil-dry: #d2ae73;
+  --soil-wet: #4e3420;
+  --alarm: #b4232c;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-limewash: var(--limewash);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-line: var(--line);
+  --color-sun: var(--sun);
+  --color-sun-deep: var(--sun-deep);
+  --color-water: var(--water);
+  --color-water-deep: var(--water-deep);
+  --color-leaf: var(--leaf);
+  --color-soil-dry: var(--soil-dry);
+  --color-soil-wet: var(--soil-wet);
+  --color-alarm: var(--alarm);
+  --color-mark-sun: var(--mark-sun);
+  --color-mark-water: var(--mark-water);
+  --color-mark-ghost: var(--mark-ghost);
+  --font-sans: var(--font-readex), system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--limewash);
+  color: var(--ink);
+  font-family: var(--font-readex), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* labels floating in the 3D twin */
+.twin-chip {
+  display: inline-block;
+  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(251 252 250 / 0.92);
+  color: var(--ink);
+  font: 500 12px/1.4 var(--font-readex), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 0 rgb(23 38 74 / 0.15);
+  pointer-events: none;
+}
+.twin-chip-sun {
+  box-shadow: inset 0 -2px 0 var(--mark-sun);
+}
+.twin-chip-water {
+  box-shadow: inset 0 -2px 0 var(--mark-water);
+}
+
+.pb-safe {
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+:focus-visible {
+  outline: 3px solid var(--sun);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
