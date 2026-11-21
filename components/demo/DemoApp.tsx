@@ -3,8 +3,12 @@
 import { Box, Leaf, LogOut, MessageCircle, RotateCcw, Satellite } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DayRibbon } from "@/components/DayRibbon";
+import { useDemoField } from "@/components/field/useDemoField";
+import { useFieldUi } from "@/components/field/store";
+import { type HeroView, ViewSwitch } from "@/components/field/ViewSwitch";
+import { ZoneCard } from "@/components/field/ZoneCard";
 import { LangSwitch } from "@/components/LangSwitch";
 import { Logo } from "@/components/Logo";
 import { EnergyPanel } from "@/components/panels/EnergyPanel";
@@ -12,17 +16,26 @@ import { AskTab } from "@/components/farmer/AskTab";
 import { DecisionCard, SavingsNote } from "@/components/farmer/Decision";
 import { LeafTab } from "@/components/farmer/LeafTab";
 import { SatelliteTab } from "@/components/farmer/SatelliteTab";
+import type { FieldData } from "@/components/field/useFieldData";
 import { signOut, useSession } from "@/lib/auth-client";
 import { clearStateCache } from "@/lib/state-cache";
 import { DEMO_EMAIL } from "@/lib/demo";
-import { DEMO_LOCATION } from "@/lib/engine/parcel";
+import { DEMO_CENTRE, DEMO_HEATWAVE_DAY, DEMO_POLYGON } from "@/lib/demo-field";
 import type { ScenarioId, WeatherScenario } from "@/lib/engine/types";
-import { useT } from "@/lib/i18n/useLang";
+import { selectFrames } from "@/lib/field/frames";
+import { dayLabel } from "@/lib/format";
+import { fmt } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/useLang";
 import { useApp, usePlan } from "@/lib/store";
 import { JoinCard } from "./JoinCard";
 import { VirtualSensor } from "./VirtualSensor";
 
 const DemoTwin = dynamic(() => import("@/components/twin/Twin"), {
+  ssr: false,
+  loading: () => <div className="h-full w-full animate-pulse bg-[#dfe6ea]" aria-hidden />,
+});
+
+const FieldHero = dynamic(() => import("@/components/field/FieldHero"), {
   ssr: false,
   loading: () => <div className="h-full w-full animate-pulse bg-[#dfe6ea]" aria-hidden />,
 });
@@ -78,17 +91,59 @@ function ScenarioToggle() {
   );
 }
 
-function TwinTab() {
+/** The demo's soil sensor, drawn where it sits in the field: the healthiest zone, the one a farmer would put a probe in. */
+function SensorPin({ pct }: { pct: number }) {
   const t = useT();
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-ink px-2.5 py-1 text-[12px] font-medium whitespace-nowrap text-paper shadow" title={fmt(t.demo.field.sensor, { pct: Math.round(pct) })}>
+      <span className="size-2 rounded-full bg-sun" aria-hidden />
+      <span dir="ltr">{Math.round(pct)} %</span>
+    </span>
+  );
+}
+
+function TwinTab({ fieldData }: { fieldData: FieldData }) {
+  const t = useT();
+  const locale = useLocale();
   const plan = usePlan();
   const parcel = useApp((s) => s.parcel);
+  const scenarioId = useApp((s) => s.scenarioId);
+  const soilPct = useApp((s) => s.soilPct);
+  const [view, setView] = useState<HeroView>("field"); // the real field first; the diagram is one tap away
+
+  // the heatwave scenario shows the passes either side of 21 July; "live" shows the latest clear ones
+  const shown = useMemo(() => (fieldData.field ? selectFrames(fieldData.field, fieldData.field.sets?.[scenarioId === "summer" ? "heatwave" : "live"] ?? []) : null), [fieldData.field, scenarioId]);
+  useEffect(() => useFieldUi.getState().setFrame(null), [scenarioId]); // a new scenario opens on its newest pass
+
+  // the sensor sits in the healthiest zone: one probe sees one spot, the satellite sees every zone
+  const sensorAt = useMemo(() => {
+    const st = shown?.stats.at(-1);
+    if (!shown?.zones || !st) return null;
+    let best = 0;
+    st.zones.forEach((z, i) => (z.ndvi ?? -1) > (st.zones[best].ndvi ?? -1) && (best = i));
+    return shown.zones.list[best]?.centroid ?? null;
+  }, [shown]);
+  const pins = useMemo(() => (sensorAt ? [{ at: sensorAt, content: <SensorPin pct={soilPct} /> }] : undefined), [sensorAt, soilPct]);
+  const heatwave = scenarioId === "summer" ? fmt(t.demo.field.heatwave, { date: dayLabel(DEMO_HEATWAVE_DAY, locale, { day: "numeric", month: "short" }) }) : undefined;
+
   return (
     <div className="lg:grid lg:h-full lg:grid-cols-[minmax(0,1fr)_460px]">
       <div className="flex flex-col lg:min-h-0">
         <div className="relative h-[42svh] min-h-[280px] overflow-hidden bg-[#dfe6ea] lg:h-auto lg:flex-1">
           <div className="absolute inset-0">
-            <DemoTwin />
+            {view === "field" && shown ? (
+              <FieldHero field={shown} pins={pins} passNote={heatwave}>
+                <ViewSwitch view={view} onChange={setView} />
+              </FieldHero>
+            ) : (
+              <DemoTwin />
+            )}
           </div>
+          {(view === "model" || !shown) && (
+            <div className="absolute start-3 top-3 z-10">
+              <ViewSwitch view={view} onChange={setView} />
+            </div>
+          )}
         </div>
         <DayRibbon plan={plan} />
       </div>
@@ -99,6 +154,12 @@ function TwinTab() {
         </div>
         <ScenarioToggle />
         <DecisionCard plan={plan} cropName={t.crops[parcel.crop]} basinCapacityM3={parcel.basinCapacityM3} />
+        {shown && (
+          <>
+            <ZoneCard field={shown} decision={plan.grossM3 > 0 ? "irrigate" : "skip"} />
+            <p className="mx-4 text-[13px] leading-snug text-ink-soft">{t.demo.field.sensorNote}</p>
+          </>
+        )}
         <VirtualSensor />
         <SavingsNote plan={plan} />
         <EnergyPanel plan={plan} parcel={parcel} />
@@ -116,6 +177,7 @@ export default function DemoApp() {
   const [tab, setTab] = useState<TabId>("twin");
   const [epoch, setEpoch] = useState(0); // bumping it remounts the tabs, clearing their local history
   useLiveWeather();
+  const fieldData = useDemoField();
 
   // the demo is for the demo account only
   useEffect(() => {
@@ -181,12 +243,12 @@ export default function DemoApp() {
       </nav>
 
       <main className="flex-1 lg:min-h-0 lg:overflow-hidden" key={epoch}>
-        {tab === "twin" && <TwinTab />}
+        {tab === "twin" && <TwinTab fieldData={fieldData} />}
         {tab !== "twin" && (
           <div className="mx-auto max-w-[720px] pb-28 lg:h-full lg:overflow-y-auto lg:pb-8">
             {tab === "leaf" && <LeafTab />}
             {tab === "ask" && <AskTab />}
-            {tab === "satellite" && <SatelliteTab lat={DEMO_LOCATION.lat} lon={DEMO_LOCATION.lon} />}
+            {tab === "satellite" && <SatelliteTab lat={DEMO_CENTRE[1]} lon={DEMO_CENTRE[0]} polygon={DEMO_POLYGON} fieldData={fieldData} />}
           </div>
         )}
       </main>

@@ -5,15 +5,16 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { GREENNESS, LEAF_WATER, toCss, toHex, zoneColor, type Ramp } from "@/lib/field/ramps";
-import type { FieldDTO } from "@/lib/field/types";
+import type { FieldDTO, LonLat } from "@/lib/field/types";
 import { dayLabel, whenLabel } from "@/lib/format";
 import { fmt } from "@/lib/i18n";
 import { useLocale, useT } from "@/lib/i18n/useLang";
 import { decodeField, frameIndex, scoresFor } from "./derive";
-import { drawGround } from "./ground";
+import { relief } from "./geometry";
+import { drawGround, hillshadeCanvas } from "./ground";
 import { loadPhoto } from "./photo";
 import { type FieldLayer, useFieldUi } from "./store";
-import type { HeightGrid } from "./FieldScene";
+import { useHeights } from "./useHeights";
 
 const FieldScene = dynamic(() => import("./FieldScene"), {
   ssr: false,
@@ -68,7 +69,21 @@ function Legend({ layer }: { layer: FieldLayer }) {
  * The real field in 3D: photo, boundary wall, satellite layers and lettered zones, with the controls laid over it.
  * Fills its parent. Whatever the parent wants at the top-start corner (the Field | Model switch) goes in `children`.
  */
-export default function FieldHero({ field, savedAt = null, heights = null, children }: { field: FieldDTO; savedAt?: number | null; heights?: HeightGrid | null; children?: React.ReactNode }) {
+export default function FieldHero({
+  field,
+  savedAt = null,
+  pins,
+  passNote,
+  children,
+}: {
+  field: FieldDTO;
+  savedAt?: number | null;
+  /** extra places to mark on the ground (the demo's soil sensor) */
+  pins?: { at: LonLat; content: React.ReactNode }[];
+  /** a short note under the pass chips (the demo marks the heatwave) */
+  passNote?: string;
+  children?: React.ReactNode;
+}) {
   const t = useT();
   const locale = useLocale();
   const ui = useFieldUi();
@@ -105,7 +120,11 @@ export default function FieldHero({ field, savedAt = null, heights = null, child
     };
   }, [field]);
 
-  const shade = null; // relief shading arrives with the terrain (see ground.ts hillshadeCanvas)
+  // relief: heights bundled with the demo or read from open terrain tiles; shaded into the photo when there is any
+  const heights = useHeights(field);
+  const rel = useMemo(() => (heights ? relief(heights.data, field.sideM) : null), [heights, field.sideM]);
+  const shade = useMemo(() => (heights && rel && rel.rangeM > 0.5 ? hillshadeCanvas(heights, field.sideM / (heights.w - 1), ground.canvas.width, Math.max(2, rel.exaggeration)) : null), [heights, rel, field.sideM, ground]);
+  const pinAt = useMemo(() => pins?.map((p) => p.at) ?? [], [pins]);
   useEffect(() => {
     drawGround(ground.canvas, { field, grids, frame: frameIdx, layer, zone, scores, photo, shade });
     ground.texture.needsUpdate = true;
@@ -118,7 +137,7 @@ export default function FieldHero({ field, savedAt = null, heights = null, child
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ background: "linear-gradient(#c9d9e3, #eef2ee)" }}>
       <div className="absolute inset-0">
-        <FieldScene field={field} texture={ground.texture} heights={heights} chips={chips} intro={!reduceMotion} label={t.field.aria} onRelief={setExag} />
+        <FieldScene field={field} texture={ground.texture} heights={heights} chips={chips} pins={pinAt} intro={!reduceMotion} label={t.field.aria} onRelief={setExag} />
       </div>
 
       {/* zone chips: positioned every frame by the scene, so they follow the zones as the farmer turns the view */}
@@ -142,10 +161,17 @@ export default function FieldHero({ field, savedAt = null, heights = null, child
             </span>
           </button>
         ))}
+        {pins?.map((p, i) => (
+          <div key={i} ref={(el) => void (chips.current[zones.length + i] = el)} className="pointer-events-none absolute top-0 left-0" style={{ opacity: 0 }}>
+            {p.content}
+          </div>
+        ))}
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
         <div className="pointer-events-auto min-h-9">{children}</div>
+        {(field.frames.length > 1 || passNote) && (
+          <div className="flex flex-col items-end gap-1">
         {field.frames.length > 1 && (
           <div role="group" aria-label={t.field.passes.label} className="pointer-events-auto flex rounded-full bg-paper/92 p-1 shadow-sm">
             {field.frames.map((f, i) => (
@@ -160,6 +186,9 @@ export default function FieldHero({ field, savedAt = null, heights = null, child
                 {short(f.date)}
               </button>
             ))}
+          </div>
+        )}
+        {passNote && <p className="rounded-full bg-paper/80 px-2.5 py-0.5 text-[11px] leading-tight text-ink-soft">{passNote}</p>}
           </div>
         )}
       </div>

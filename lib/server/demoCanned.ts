@@ -1,4 +1,5 @@
 import type { Diagnosis } from "@/lib/diagnosis-schema";
+import { demoFocusZone } from "./demoField";
 import type { Lang } from "@/lib/i18n";
 
 // Saved answers for an OFFLINE presentation (DEMO_OFFLINE=1): the venue's Wi-Fi or the free AI quota
@@ -55,10 +56,11 @@ export const CANNED_DIAGNOSIS: Record<Lang, Diagnosis> = {
   },
 };
 
-type Intent = "rain" | "water" | "pump" | "leaf" | "other";
+type Intent = "zone" | "rain" | "water" | "pump" | "leaf" | "other";
 
 const CANNED: Record<Lang, Record<Intent, string>> = {
   en: {
+    zone: "On the satellite view, zone {zone} is the weakest and driest part of your field. Your plan still decides how much water: start there. It looked the same on the earlier pass, so go and see whether it is thin canopy, young trees or a dry patch.",
     rain: "The forecast shows only light rain this week, so do not count on it for irrigation. The Week tab has the day-by-day numbers.",
     water: "Water only when the root zone is below the stress threshold. The Today tab shows if you should water, how much, and when.",
     pump: "Run the solar pump at the sunniest hours to fill the basin, and water from the basin at dawn and dusk. The pumping chart shows the plan hour by hour.",
@@ -66,6 +68,7 @@ const CANNED: Record<Lang, Record<Intent, string>> = {
     other: "I am in saved demo mode, so I can only answer a few questions about watering, rain, the pump and sick leaves.",
   },
   ar: {
+    zone: "على صورة القمر الصناعي، المنطقة {zone} هي أضعف وأجف جزء في حقلك. خطة السقي تحدد الكمية، وابدا منها. كانت هكاكا حتى في الصورة اللي قبلها، اذهب شوفها: يمكن شجر خفيف ولا صغير ولا بقعة ناشفة.",
     rain: "التوقعات تقول مطر خفيف برك الجمعة هاذي، ما تعتمدش عليه في السقي. شوف تبويب الأسبوع للأرقام نهار بنهار.",
     water: "ما تسقيش كان الأرض نزلت تحت حد الإجهاد. افتح تبويب اليوم: يقلك تسقي ولا لا، قداه، وفي أنا وقت.",
     pump: "شغّل المضخة الشمسية في أشمس الساعات باش تعمّر الحوض، واسقي من الحوض الفجر والغروب. رسم الضخ يوريك البرنامج ساعة بساعة.",
@@ -73,6 +76,7 @@ const CANNED: Record<Lang, Record<Intent, string>> = {
     other: "أنا في وضع العرض المحفوظ، نجاوب برك على أسئلة قليلة على السقي والمطر والمضخة والأوراق المريضة.",
   },
   ja: {
+    zone: "衛星画像では、区画{zone}が畑の中で最も弱く、最も乾いています。水の量はプランどおりで、まずそこから始めてください。前回の画像でも同じ状態だったので、樹冠が薄いのか、若木なのか、乾いた部分なのかを現地で確認してください。",
     rain: "今週は弱い雨の予報なので、灌漑の頼りにはしないでください。日ごとの数値は「週間」タブで確認できます。",
     water: "根域の水分がストレスの限界を下回ったときだけ水をやります。「今日」タブで、水やりの要否・量・時間帯を確認できます。",
     pump: "ソーラーポンプは日射の強い時間に動かして貯水池にため、夜明けと夕方に水やりをします。汲み上げのグラフに1時間ごとのプランがあります。",
@@ -81,8 +85,12 @@ const CANNED: Record<Lang, Record<Intent, string>> = {
   },
 };
 
+const AR_LETTERS: Record<string, string> = { A: "أ", B: "ب", C: "ج", D: "د" };
+
 export function cannedAnswer(message: string, lang: Lang): string {
-  const intent: Intent = /(مطر|شتا|rain|pluie|雨)/i.test(message)
+  const intent: Intent = /(zone|which part|part of (my|the) field|satellite|ndvi|greenness|منطقة|مناطق|جزء|قمر|区画|どの部分|衛星)/i.test(message)
+    ? "zone"
+    : /(مطر|شتا|rain|pluie|雨)/i.test(message)
     ? "rain"
     : /(سق|ري|water|irrigat|arros|水やり|灌漑)/i.test(message)
       ? "water"
@@ -91,7 +99,10 @@ export function cannedAnswer(message: string, lang: Lang): string {
         : /(ورق|تصفار|leaf|leaves|yellow|jaune|葉|黄)/i.test(message)
           ? "leaf"
           : "other";
-  return CANNED[lang][intent];
+  const text = CANNED[lang][intent];
+  if (intent !== "zone") return text;
+  const id = demoFocusZone();
+  return id ? text.replace("{zone}", lang === "ar" ? (AR_LETTERS[id] ?? id) : id) : CANNED[lang].other;
 }
 
 export const demoOffline = () => process.env.DEMO_OFFLINE === "1";

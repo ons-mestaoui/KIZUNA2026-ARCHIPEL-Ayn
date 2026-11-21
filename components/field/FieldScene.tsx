@@ -6,7 +6,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { type MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import type { FieldDTO } from "@/lib/field/types";
+import type { FieldDTO, LonLat } from "@/lib/field/types";
 import { COLORS } from "@/components/twin/layout";
 import { fieldSpanM, sceneProjector } from "./derive";
 import { type HeightAt, buildSkirt, buildTerrain, buildWall, heightSampler, relief } from "./geometry";
@@ -23,8 +23,10 @@ export interface FieldSceneProps {
   /** the ground texture, painted by the parent (see ground.ts) */
   texture: THREE.CanvasTexture;
   heights: HeightGrid | null;
-  /** one slot per zone: the DOM chip that follows the zone around the screen */
+  /** one slot per zone, then one per pin: the DOM element that follows that spot around the screen */
   chips: MutableRefObject<(HTMLElement | null)[]>;
+  /** extra places to mark (the demo's soil sensor), after the zones */
+  pins?: LonLat[];
   /** play the fly-in */
   intro: boolean;
   label: string;
@@ -36,7 +38,7 @@ const FOV = 32;
 const POLAR = 0.88; // radians from straight down: a bit steeper than 3/4 so the zones read
 const AZIMUTH = 0.3; // from the south, turned a little toward the east (north stays roughly up)
 const INTRO_S = 2.4;
-const CHIP_GAP = 42; // px between the centres of two zone chips
+const CHIP_R = 21; // px: half of a zone chip
 const GOLD = new THREE.Color("#e3a21a");
 const STRATA = [
   { to: 0.28, color: COLORS.soilDry },
@@ -44,6 +46,7 @@ const STRATA = [
   { to: 1, color: COLORS.aquifer },
 ];
 
+const NO_PINS: LonLat[] = [];
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 function useDisposable<T extends { dispose(): void }>(value: T) {
@@ -52,7 +55,7 @@ function useDisposable<T extends { dispose(): void }>(value: T) {
 }
 
 /** The slab of ground, the field's wall and the zone anchors, built once per payload. */
-function World({ field, texture, heights, chips, intro, onRelief }: Omit<FieldSceneProps, "label">) {
+function World({ field, texture, heights, chips, pins = NO_PINS, intro, onRelief }: Omit<FieldSceneProps, "label">) {
   const { gl, camera, size } = useThree();
   const sideM = field.sideM;
   const rel = useMemo(() => (heights ? relief(heights.data, sideM) : null), [heights, sideM]);
@@ -103,14 +106,14 @@ function World({ field, texture, heights, chips, intro, onRelief }: Omit<FieldSc
     return visible / 2 / Math.tan(Math.min(vHalf, hHalf));
   }, [sideM, span, size.width, size.height]);
 
-  // zone anchors for the chips
+  // anchors for the chips: the zones, then any pins
   const anchors = useMemo(
     () =>
-      (field.zones?.list ?? []).map((z) => {
-        const [x, zz] = toXZ(z.centroid);
+      [...(field.zones?.list ?? []).map((z) => z.centroid), ...pins].map((p) => {
+        const [x, zz] = toXZ(p);
         return new THREE.Vector3(x, heightAt(x, zz) + 2, zz);
       }),
-    [field, toXZ, heightAt],
+    [field, pins, toXZ, heightAt],
   );
 
   const controls = useRef<OrbitControlsImpl>(null);
@@ -128,7 +131,8 @@ function World({ field, texture, heights, chips, intro, onRelief }: Omit<FieldSc
   }, [fit, intro, target]);
 
   const v = useMemo(() => new THREE.Vector3(), []);
-  const spots = useMemo(() => anchors.map(() => ({ x: 0, y: 0, on: true })), [anchors]);
+  const zoneCount = field.zones?.list.length ?? 0;
+  const spots = useMemo(() => anchors.map((_, i) => ({ x: 0, y: 0, on: true, r: CHIP_R, pin: i >= zoneCount })), [anchors, zoneCount]);
   useFrame((state) => {
     if (!ready) {
       started.current ??= state.clock.elapsedTime;
@@ -140,27 +144,39 @@ function World({ field, texture, heights, chips, intro, onRelief }: Omit<FieldSc
         controls.current?.update();
       }
     }
-    // project every zone anchor to the screen, then nudge chips apart so neighbouring zones never hide each other
+    // project every anchor to the screen, then nudge them apart so nothing hides a zone letter: zone chips stay put and
+    // pins (which are wider) move out of their way
     anchors.forEach((a, i) => {
       v.copy(a).project(camera);
       spots[i].x = ((v.x + 1) / 2) * state.size.width;
       spots[i].y = ((1 - v.y) / 2) * state.size.height;
       spots[i].on = v.z < 1;
+      spots[i].r = spots[i].pin ? Math.max(CHIP_R, (chips.current[i]?.offsetWidth ?? 0) / 2) : CHIP_R;
     });
     for (let pass = 0; pass < 4; pass++) {
       for (let i = 0; i < spots.length; i++) {
         for (let j = i + 1; j < spots.length; j++) {
-          const dx = spots[j].x - spots[i].x;
-          const dy = spots[j].y - spots[i].y;
+          const a = spots[i];
+          const b = spots[j];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
           const d = Math.hypot(dx, dy);
-          if (d >= CHIP_GAP) continue;
-          const push = (CHIP_GAP - d) / 2;
-          const ux = d > 0.01 ? dx / d : 1;
-          const uy = d > 0.01 ? dy / d : 0;
-          spots[i].x -= ux * push;
-          spots[i].y -= uy * push;
-          spots[j].x += ux * push;
-          spots[j].y += uy * push;
+          const need = a.r + b.r + 4;
+          if (d >= need) continue;
+          const push = need - d;
+          const ux = d > 0.01 ? dx / d : 0;
+          const uy = d > 0.01 ? dy / d : -1;
+          if (a.pin !== b.pin) {
+            const pin = a.pin ? a : b;
+            const sign = a.pin ? -1 : 1; // away from the chip
+            pin.x += sign * ux * push;
+            pin.y += sign * uy * push;
+          } else {
+            a.x -= (ux * push) / 2;
+            a.y -= (uy * push) / 2;
+            b.x += (ux * push) / 2;
+            b.y += (uy * push) / 2;
+          }
         }
       }
     }

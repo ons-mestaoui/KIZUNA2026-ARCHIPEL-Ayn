@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     ]);
     const history = recent.reverse().map((m) => ({ role: m.role === "assistant" ? ("model" as const) : ("user" as const), parts: [{ text: m.content }] }));
     const [header, base64] = image ? image.split(",", 2) : [null, null];
-    const fieldLine = await fieldContext(farm, state?.week[0]?.plan.grossM3 ? "irrigate" : "skip"); // satellite sentences, if a view is already cached
+    const fieldLine = await fieldContext(farm, state?.week[0]?.plan.grossM3 ? "irrigate" : "skip", { demo }); // satellite sentences, if a view is already cached
     const facts = `\n\nFarm facts:\n${farmContext(state, farm)}${fieldLine ? `\n${fieldLine}` : ""}`;
     const contents = [
       ...history,

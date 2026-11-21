@@ -83,7 +83,7 @@ ok(await page.evaluate(() => [...document.querySelectorAll("img")].some((i) => i
 const tabs = await page.evaluate(() => [...document.querySelectorAll("nav button")].filter((x) => x.offsetParent !== null).map((x) => x.textContent.trim()));
 console.log("   tabs:", tabs.join(" | "));
 ok(tabs.length === 4, "four demo tabs", tabs.join(", "));
-for (const [i, label, probe] of [[1, "Leaf check", () => !!document.querySelector('input[type="file"][capture="environment"]')], [2, "Ask", () => !!document.querySelector("form textarea")], [3, "Satellite", () => document.querySelectorAll("article").length === 4]]) {
+for (const [i, label, probe] of [[1, "Leaf check", () => !!document.querySelector('input[type="file"][capture="environment"]')], [2, "Ask", () => !!document.querySelector("form textarea")], [3, "Satellite", () => document.querySelectorAll("article").length === 5]]) {
   await page.evaluate((n) => [...document.querySelectorAll("nav button")].filter((x) => x.offsetParent !== null)[n]?.click(), i);
   await wait(1500);
   ok(await page.evaluate(probe), `${label} tab works inside the demo`);

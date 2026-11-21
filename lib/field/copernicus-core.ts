@@ -1,5 +1,5 @@
 import { fromArrayBuffer } from "geotiff";
-import { localFrame, meanPoint } from "./geo";
+import { localFrame, meanPoint, polygonAreaM2 } from "./geo";
 import type { GeoBox, LonLat, SeriesPoint } from "./types";
 
 // A small client for the Copernicus Data Space "Sentinel Hub" APIs (Sentinel-2 L2A): a token, a field-level history
@@ -199,7 +199,9 @@ export function createCdseClient(creds: CdseCredentials, opts: CdseOptions = {})
         const b = row.outputs?.ndmi?.bands?.B0?.stats;
         const samples = num(a?.sampleCount) ?? 0;
         if (!samples) continue;
-        const clear = (samples - (num(a?.noDataCount) ?? 0)) / samples;
+        // sampleCount covers the polygon's whole bounding box, so a tilted field counts the corners outside it as
+        // "no data": measure the clear pixels against the field's own size (area ÷ one 10 m pixel) instead
+        const clear = Math.min(1, (samples - (num(a?.noDataCount) ?? 0)) / Math.max(1, polygonAreaM2(polygon) / 100));
         out.push({
           date: row.interval.from.slice(0, 10),
           ndvi: clear > 0 ? num(a?.mean) : null,
@@ -238,7 +240,7 @@ export function createCdseClient(creds: CdseCredentials, opts: CdseOptions = {})
       const res = await call(
         "/process",
         {
-          input: { bounds: bounds(box), data: [{ type: "sentinel-2-l2a", dataFilter: day(date) }] },
+          input: { bounds: bounds(box), data: [{ type: "sentinel-2-l2a", dataFilter: day(date), processing: { upsampling: "BICUBIC" } }] },
           output: { width: w, height: h, responses: [{ identifier: "default", format: { type: "image/jpeg", quality: 92 } }] },
           evalscript: TRUECOLOR_SCRIPT,
         },

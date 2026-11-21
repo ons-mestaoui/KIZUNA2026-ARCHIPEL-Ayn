@@ -37,6 +37,11 @@ export interface AdviceResult {
   rows: ZoneRow[];
   /** a zone that lost greenness faster than the rest of the field since an earlier pass */
   trend: { zone: number; delta: number; since: string } | null;
+  /**
+   * The zone the advice names was already weaker on the earlier pass, so the difference is lasting (thin canopy, young
+   * trees, a sandy patch) rather than new thirst: the card says so instead of implying a fresh problem.
+   */
+  persistent: { zone: number; since: string } | null;
 }
 
 /**
@@ -55,8 +60,8 @@ const days = (a: string, b: string) => (Date.parse(`${a}T12:00:00Z`) - Date.pars
 
 export function adviseZones(args: { latest: FrameStats | null; previous: FrameStats | null; decision: "irrigate" | "skip" }): AdviceResult {
   const { latest, previous, decision } = args;
-  if (!latest || latest.field.ndvi === null) return { advice: { kind: "none", reason: "no_data" }, rows: [], trend: null };
-  if (latest.zones.length < 2) return { advice: { kind: "none", reason: "no_zones" }, rows: [], trend: null };
+  if (!latest || latest.field.ndvi === null) return { advice: { kind: "none", reason: "no_data" }, rows: [], trend: null, persistent: null };
+  if (latest.zones.length < 2) return { advice: { kind: "none", reason: "no_zones" }, rows: [], trend: null, persistent: null };
 
   const fN = latest.field.ndvi;
   const fM = latest.field.ndmi;
@@ -99,5 +104,11 @@ export function adviseZones(args: { latest: FrameStats | null; previous: FrameSt
       if (rel <= -TREND_STEP && (!trend || rel < trend.delta)) trend = { zone, delta: rel, since: previous.date };
     });
   }
-  return { advice, rows, trend };
+
+  let persistent: AdviceResult["persistent"] = null;
+  if ((advice.kind === "waterFirst" || advice.kind === "check") && previous && previous.field.ndvi !== null) {
+    const then = previous.zones[advice.zone];
+    if (then && then.ndvi !== null && then.clear >= MIN_CLEAR && then.ndvi - previous.field.ndvi <= -NDVI_STEP) persistent = { zone: advice.zone, since: previous.date };
+  }
+  return { advice, rows, trend, persistent };
 }

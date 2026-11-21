@@ -35,7 +35,7 @@ export function summarizeField(field: FieldDTO, decision: "irrigate" | "skip"): 
     return lines.join("\n");
   }
   const ids = zones.map((z) => z.id);
-  const { advice, rows, trend } = adviseZones({ latest: st, previous: idx > 0 ? field.stats[idx - 1] : null, decision });
+  const { advice, rows, trend, persistent } = adviseZones({ latest: st, previous: idx > 0 ? field.stats[idx - 1] : null, decision });
   lines.push(
     `Zones (named by position, A is the north-west one): ${rows
       .map((r, i) => {
@@ -46,6 +46,7 @@ export function summarizeField(field: FieldDTO, decision: "irrigate" | "skip"): 
   );
   const line = adviceLine(advice, ids);
   if (line) lines.push(line);
+  if (persistent) lines.push(`Zone ${ids[persistent.zone]} already looked this weak on ${persistent.since}, so it may be thin canopy, young trees or a sandy patch rather than new thirst.`);
   if (trend) lines.push(`Zone ${ids[trend.zone]} lost greenness faster than the rest of the field since ${trend.since}.`);
   return lines.join("\n");
 }

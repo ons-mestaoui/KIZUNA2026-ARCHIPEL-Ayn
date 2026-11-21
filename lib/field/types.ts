@@ -89,6 +89,8 @@ export interface FieldDTO {
   /** true when the newest pass is only partly clear */
   partial: boolean;
   terrain?: FieldTerrain;
+  /** snapshot only: named groups of pass dates (the demo's heatwave passes, its latest passes) */
+  sets?: Record<string, string[]>;
   /** snapshot only: a bundled true-colour photo of the scene box (open licence) */
   photoUrl?: string;
 }

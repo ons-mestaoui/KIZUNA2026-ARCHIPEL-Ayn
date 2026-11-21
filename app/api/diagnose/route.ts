@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
   try {
     const state = await loadFarmState(farm).catch(() => null); // weather down → still diagnose
-    const fieldLine = await fieldContext(farm, state?.week[0]?.plan.grossM3 ? "irrigate" : "skip");
+    const fieldLine = await fieldContext(farm, state?.week[0]?.plan.grossM3 ? "irrigate" : "skip", { demo });
     const [header, base64] = image.split(",", 2);
     const { diagnosis, model } = await diagnose({
       imageBase64: base64,

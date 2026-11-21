@@ -406,6 +406,7 @@ export const en = {
       tag: { greener: "greener", similar: "similar", weaker: "less green" },
       wet: { wetter: "wetter leaves", similar: "similar", drier: "drier leaves" },
       average: "like the field average",
+      persistent: "It already looked this way on {date}, so it may be thin canopy, young trees or a sandy patch rather than new thirst. Go and see.",
       trend: "Zone {zone} lost greenness faster than the rest of the field since {date}.",
       limits: "Greenness and leaf water come from 10 m satellite pixels: they show where plants look different, not how much water is in the soil.",
       numbers: "Show the numbers",
@@ -416,6 +417,11 @@ export const en = {
     badge: "Demo",
     saved: "Saved demo answer",
     tabs: { twin: "Twin", leaf: "Leaf check", ask: "Ask", satellite: "Satellite" },
+    field: {
+      heatwave: "Heatwave on {date}",
+      sensor: "Sensor · {pct} %",
+      sensorNote: "One sensor sees one spot. The satellite sees every zone.",
+    },
     scenario: {
       label: "Weather scenario",
       heatwave: "Heatwave · 21 Jul 2026",

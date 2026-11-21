@@ -3,18 +3,20 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
 import { DEMO_EMAIL } from "@/lib/demo";
+import { DEMO_CENTRE, DEMO_POLYGON } from "@/lib/demo-field";
 
 export const demoEnabled = () => process.env.DEMO_ENTRY === "1" && !!process.env.DEMO_PASSWORD;
 
 /** The demo account's farm: the same Cap Bon citrus parcel the pitch dashboard shows. */
 const DEMO_FARM = {
   name: "Demo farm · Cap Bon",
-  lat: 36.68,
-  lon: 10.58,
+  lat: DEMO_CENTRE[1], // the middle of the demo field (a real citrus block ~1.3 km north-west of Menzel Bouzelfa)
+  lon: DEMO_CENTRE[0],
   placeName: "Cap Bon, Tunisia",
   crop: "citrus",
   plantingDate: null,
   areaHa: 1,
+  polygon: DEMO_POLYGON, // exactly 1 ha, so the pitch's engine numbers stay what they were
   soilTexture: "sandy_loam",
   irrigationMethod: "drip",
   waterSource: "solar_basin",

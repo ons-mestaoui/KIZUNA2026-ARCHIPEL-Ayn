@@ -1,7 +1,7 @@
 import { writeArrayBuffer } from "geotiff";
 import { describe, expect, it, vi } from "vitest";
 import { CdseError, createCdseClient } from "./copernicus-core";
-import { squareFromArea } from "./geo";
+import { localFrame, squareFromArea } from "./geo";
 import type { LonLat } from "./types";
 
 const SECRET = "s3cr3t-value-that-must-never-leak";
@@ -95,6 +95,23 @@ describe("series", () => {
     expect(out[0]).toEqual({ date: "2026-11-10", ndvi: null, ndmi: null, clear: 0 });
     expect(out[1].clear).toBe(0.6);
     expect(out[2]).toEqual({ date: "2026-11-15", ndvi: 0.62, ndmi: 0.21, clear: 1 });
+  });
+});
+
+describe("series for a tilted field", () => {
+  it("does not count the bounding box's empty corners as cloud", async () => {
+    // a 1 ha rectangle turned 25°: its bounding box holds about 154 pixels of 10 m, only ~100 of them inside the field
+    const f = localFrame(here);
+    const a = (25 * Math.PI) / 180;
+    const corners = ([[-62.5, -40], [-62.5, 40], [62.5, 40], [62.5, -40]] as [number, number][]).map(([x, y]) => f.toLonLat([x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)]));
+    const row = (day: string, noData: number) => ({
+      interval: { from: `${day}T00:00:00Z`, to: `${day}T23:59:59Z` },
+      outputs: { ndvi: { bands: { B0: { stats: { mean: 0.7, sampleCount: 154, noDataCount: noData } } } }, ndmi: { bands: { B0: { stats: { mean: 0.2, sampleCount: 154, noDataCount: noData } } } } },
+    });
+    const n = net([(u) => (isToken(u) ? tokenReply() : undefined), (u) => (u.endsWith("/statistics") ? json({ data: [row("2026-11-15", 54), row("2026-11-20", 94)] }) : undefined)]);
+    const out = await createCdseClient(creds, { fetch: n.fn, sleep: noSleep }).series(corners, new Date("2026-11-01"), new Date("2026-11-22"));
+    expect(out[0].clear).toBeGreaterThan(0.98); // 100 clear pixels of a ~100-pixel field: fully clear
+    expect(out[1].clear).toBeCloseTo(0.6, 1); // 60 of 100: really cloudy
   });
 });
 

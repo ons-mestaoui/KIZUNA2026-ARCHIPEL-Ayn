@@ -60,6 +60,25 @@ describe("adviseZones", () => {
   });
 });
 
+describe("persistent differences", () => {
+  const before = frame("2026-07-18", z(0.6, 0.2), [z(0.68, 0.27), z(0.5, 0.12), z(0.62, 0.22)]);
+  const now = frame("2026-07-23", z(0.6, 0.2), [z(0.68, 0.27), z(0.5, 0.12), z(0.62, 0.22)]);
+
+  it("says so when the weak zone was just as weak on the earlier pass: thin canopy, not new thirst", () => {
+    const r = adviseZones({ latest: now, previous: before, decision: "irrigate" });
+    expect(r.advice).toEqual({ kind: "waterFirst", zone: 1 });
+    expect(r.persistent).toEqual({ zone: 1, since: "2026-07-18" });
+  });
+  it("does not say it when the zone was fine before: that is a new change", () => {
+    const fine = frame("2026-07-18", z(0.6, 0.2), [z(0.6, 0.2), z(0.6, 0.2), z(0.6, 0.2)]);
+    expect(adviseZones({ latest: now, previous: fine, decision: "irrigate" }).persistent).toBeNull();
+  });
+  it("has nothing to compare with on the first pass, or when the field looks even", () => {
+    expect(adviseZones({ latest: now, previous: null, decision: "irrigate" }).persistent).toBeNull();
+    expect(adviseZones({ latest: even, previous: before, decision: "irrigate" }).persistent).toBeNull();
+  });
+});
+
 describe("zoneScore", () => {
   const field = z(0.6, 0.2);
   it("is 0 for an average zone and ±0.5 for one step on both signals", () => {

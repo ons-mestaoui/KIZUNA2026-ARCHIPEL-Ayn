@@ -4,8 +4,11 @@ import type { GeoBox } from "@/lib/field/types";
 // A photo of the scene box, stitched in the browser from Esri World Imagery tiles (the same service the app's maps
 // use, shown with its attribution). The tiles go straight from Esri to the phone; our server never touches them.
 
-/** A tile smaller than this is a blank or "no imagery here" placeholder, not a photograph. */
-const MIN_REAL_TILE_BYTES = 2500;
+/**
+ * Esri answers HTTP 200 with a grey "Map data not yet available" picture where it has no imagery at that zoom. Measured
+ * on the real service it is exactly 2,521 bytes, so that size (and anything tiny) is not a photograph.
+ */
+const isPlaceholder = (bytes: number) => bytes < 1500 || (bytes >= 2400 && bytes <= 2650);
 /** Detail check for zoom 18: where Esri only has coarse imagery it serves an upscaled, featureless tile. */
 const MIN_DETAILED_TILE_BYTES = 8000;
 
@@ -14,7 +17,7 @@ async function fetchTile(url: string, signal?: AbortSignal): Promise<{ bitmap: I
     const res = await fetch(url, { signal, mode: "cors" });
     if (!res.ok) return null;
     const blob = await res.blob();
-    if (blob.size < MIN_REAL_TILE_BYTES) return null;
+    if (isPlaceholder(blob.size)) return null;
     return { bitmap: await createImageBitmap(blob), bytes: blob.size };
   } catch {
     return null;

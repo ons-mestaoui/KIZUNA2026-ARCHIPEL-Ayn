@@ -408,6 +408,7 @@ export const ja: Dict = {
       tag: { greener: "より緑", similar: "同程度", weaker: "緑が薄い" },
       wet: { wetter: "葉が湿っている", similar: "同程度", drier: "葉が乾いている" },
       average: "畑の平均と同程度",
+      persistent: "{date}にも同じ状態だったため、新たな水不足ではなく、樹冠が薄い・若木・砂質の部分の可能性があります。現地で確認してください。",
       trend: "区画{zone}は{date}以降、畑の他の部分より速く緑が減りました。",
       limits: "緑度と葉の水分は10 mの衛星画素から求めた値です。植物の見え方の違う場所を示すもので、土の水分量ではありません。",
       numbers: "数値を表示",
@@ -418,6 +419,11 @@ export const ja: Dict = {
     badge: "デモ",
     saved: "保存済みのデモ回答",
     tabs: { twin: "ツイン", leaf: "葉のチェック", ask: "質問", satellite: "衛星" },
+    field: {
+      heatwave: "{date}の熱波",
+      sensor: "センサー · {pct} %",
+      sensorNote: "センサー1つで見えるのは1か所だけ。衛星はすべての区画を見渡せます。",
+    },
     scenario: {
       label: "天気シナリオ",
       heatwave: "猛暑 · 2026年7月21日",

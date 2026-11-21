@@ -26,7 +26,7 @@ export function ZoneCard({ field, decision }: { field: FieldDTO; decision: "irri
   const latest = field.stats[idx] ?? null;
   const previous = idx > 0 ? field.stats[idx - 1] : null;
   const zones = field.zones?.list ?? [];
-  const { advice, rows, trend } = useMemo(() => adviseZones({ latest, previous, decision }), [latest, previous, decision]);
+  const { advice, rows, trend, persistent } = useMemo(() => adviseZones({ latest, previous, decision }), [latest, previous, decision]);
   const scores = useMemo(() => scoresFor(field, idx), [field, idx]);
   if (!latest || latest.field.ndvi === null) return null;
   const totalHa = zones.reduce((sum, z) => sum + z.areaHa, 0);
@@ -69,6 +69,7 @@ export function ZoneCard({ field, decision }: { field: FieldDTO; decision: "irri
         {h.text}
       </h2>
       {h.why && <p className="mt-1.5 text-[15px] leading-snug text-ink-soft">{h.why}</p>}
+      {persistent && <p className="mt-1.5 text-[14px] leading-snug text-sun-deep">{fmt(c.persistent, { date: date(persistent.since) })}</p>}
 
       {zones.length >= 2 && (
         <ul className="mt-3 grid gap-1">
