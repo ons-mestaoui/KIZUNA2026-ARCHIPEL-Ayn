@@ -6,8 +6,8 @@ export interface FrameState {
   idx: number;
   pumpOn: boolean;
   irrigating: boolean;
-  basinFrac: number; // 0–1
-  pvFrac: number; // 0–1 of nameplate
+  basinFrac: number; // 0–1 (0 when there is no basin)
+  pvFrac: number; // 0–1 of nameplate (0 without panels)
 }
 
 /**
@@ -26,7 +26,7 @@ export function frameAt(plan: DailyPlan, capacity: number, kWp: number): FrameSt
     idx,
     pumpOn: step.pumpOn,
     irrigating: step.irrigating,
-    basinFrac: Math.max(0, Math.min(1, level / capacity)),
-    pvFrac: Math.min(1, step.pvW / (kWp * 1000 * 0.8)),
+    basinFrac: capacity > 0 ? Math.max(0, Math.min(1, level / capacity)) : 0,
+    pvFrac: kWp > 0 ? Math.min(1, step.pvW / (kWp * 1000 * 0.8)) : 0,
   };
 }

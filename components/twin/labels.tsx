@@ -42,9 +42,10 @@ export function LabelProjector() {
 export function LabelOverlay() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      <span ref={(el) => void (labelEls.pv = el)} className="twin-chip twin-chip-sun absolute top-0 left-0" />
-      <span ref={(el) => void (labelEls.pump = el)} className="twin-chip absolute top-0 left-0" />
-      <span ref={(el) => void (labelEls.basin = el)} className="twin-chip twin-chip-water absolute top-0 left-0" />
+      {/* dir="auto": "0.0 kW" stays left-to-right inside an Arabic page, Arabic labels stay right-to-left */}
+      <span ref={(el) => void (labelEls.pv = el)} dir="auto" className="twin-chip twin-chip-sun absolute top-0 left-0" />
+      <span ref={(el) => void (labelEls.pump = el)} dir="auto" className="twin-chip absolute top-0 left-0" />
+      <span ref={(el) => void (labelEls.basin = el)} dir="auto" className="twin-chip twin-chip-water absolute top-0 left-0" />
     </div>
   );
 }

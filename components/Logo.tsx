@@ -11,7 +11,11 @@ export function Drop({ size = 22 }: { size?: number }) {
 /** The brand name stays in Latin letters in every language. */
 export function Logo({ href = "/", className = "" }: { href?: string; className?: string }) {
   return (
-    <Link href={href} dir="ltr" className={`inline-flex items-center gap-2 text-[22px] leading-none font-semibold tracking-tight ${className}`}>
+    <Link
+      href={href}
+      dir="ltr"
+      className={`inline-flex shrink-0 items-center gap-2 text-[20px] leading-none font-semibold tracking-tight whitespace-nowrap sm:text-[22px] ${className}`}
+    >
       <Drop />
       Goutte d&apos;Or
     </Link>

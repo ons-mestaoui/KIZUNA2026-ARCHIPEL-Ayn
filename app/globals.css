@@ -85,6 +85,9 @@ h3 {
   box-shadow: 0 1px 0 rgb(23 38 74 / 0.15);
   pointer-events: none;
 }
+.twin-chip:empty {
+  display: none; /* a label with no text (e.g. no basin on this farm) disappears */
+}
 .twin-chip-sun {
   box-shadow: inset 0 -2px 0 var(--mark-sun);
 }

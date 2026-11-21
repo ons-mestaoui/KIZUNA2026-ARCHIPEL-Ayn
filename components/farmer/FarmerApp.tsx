@@ -1,41 +1,122 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { CalendarDays, CalendarRange, Leaf, MessageCircle, RefreshCw, Satellite, Settings, WifiOff } from "lucide-react";
+import { useState } from "react";
 import { LangSwitch } from "@/components/LangSwitch";
 import { Logo } from "@/components/Logo";
-import { signOut, useSession } from "@/lib/auth-client";
 import { fmt } from "@/lib/i18n";
-import { useT } from "@/lib/i18n/useLang";
+import { whenLabel } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n/useLang";
+import { FarmTab } from "./FarmTab";
+import { TodayTab } from "./TodayTab";
+import { useFarmState } from "./useFarmState";
+import { WeekTab } from "./WeekTab";
 
-// B1 stub — becomes the Today / Week / Leaf / Ask / Satellite / Farm app in blocks B3–B8.
+type TabId = "today" | "week" | "leaf" | "ask" | "satellite" | "farm";
+const TABS: { id: Exclude<TabId, "farm">; icon: React.ReactNode }[] = [
+  { id: "today", icon: <CalendarDays size={22} /> },
+  { id: "week", icon: <CalendarRange size={22} /> },
+  { id: "leaf", icon: <Leaf size={22} /> },
+  { id: "ask", icon: <MessageCircle size={22} /> },
+  { id: "satellite", icon: <Satellite size={22} /> },
+];
+
 export function FarmerApp() {
   const t = useT();
-  const router = useRouter();
-  const { data, isPending } = useSession();
+  const locale = useLocale();
+  const { state, status, savedAt, refresh } = useFarmState();
+  const [tab, setTab] = useState<TabId>("today");
+
+  const tabButton = (id: Exclude<TabId, "farm">, icon: React.ReactNode, className: string) => (
+    <button
+      key={id}
+      type="button"
+      aria-current={tab === id ? "page" : undefined}
+      onClick={() => setTab(id)}
+      className={`${className} ${tab === id ? "font-semibold text-ink" : "text-ink-soft"}`}
+    >
+      {icon}
+      {t.shell.tabs[id]}
+    </button>
+  );
 
   return (
-    <main className="mx-auto flex min-h-svh w-full max-w-[880px] flex-col px-4 pt-[max(16px,env(safe-area-inset-top))] pb-10">
-      <header className="flex flex-wrap items-center justify-between gap-3 py-2">
+    <div className="mx-auto flex min-h-svh max-w-[1600px] flex-col lg:h-svh">
+      <header className="flex items-center justify-between gap-3 px-4 pt-[max(12px,env(safe-area-inset-top))] pb-2">
         <Logo href="/app" />
-        <LangSwitch />
+        <div className="flex items-center gap-2">
+          <LangSwitch className="hidden sm:inline-flex" />
+          <button
+            type="button"
+            onClick={() => setTab("farm")}
+            aria-label={t.farm.title}
+            aria-current={tab === "farm" ? "page" : undefined}
+            className={`grid size-11 place-items-center rounded-full border border-line bg-paper ${tab === "farm" ? "ring-2 ring-ink" : ""}`}
+          >
+            <Settings size={20} aria-hidden />
+          </button>
+        </div>
       </header>
-      <section className="py-10">
-        <h1 className="text-[32px] leading-tight font-semibold tracking-tight">
-          {isPending || !data ? t.common.loading : fmt(t.shell.hello, { name: data.user.name })}
-        </h1>
-        <p className="mt-3 text-ink-soft">{t.shell.soon}</p>
-        <button
-          type="button"
-          onClick={async () => {
-            await signOut();
-            router.push("/");
-            router.refresh();
-          }}
-          className="mt-8 h-12 rounded-xl border border-line bg-paper px-5 font-medium"
-        >
-          {t.common.signOut}
-        </button>
-      </section>
-    </main>
+
+      {/* desktop: tabs under the header */}
+      <nav aria-label={t.farm.title} className="hidden border-y border-line bg-paper lg:block">
+        <ul className="mx-auto flex max-w-[1600px] gap-2 px-4">
+          {TABS.map((x) => (
+            <li key={x.id}>{tabButton(x.id, x.icon, "flex h-11 items-center gap-2 px-3 text-[14px]")}</li>
+          ))}
+        </ul>
+      </nav>
+
+      {status === "offline" && savedAt && (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-2 bg-sun/20 px-4 py-2 text-[14px]">
+          <span className="inline-flex items-center gap-2">
+            <WifiOff size={16} aria-hidden />
+            {fmt(t.offline.banner, { when: whenLabel(savedAt, locale) })}
+          </span>
+          <button type="button" onClick={refresh} className="inline-flex h-9 items-center gap-1.5 font-medium underline underline-offset-4">
+            <RefreshCw size={14} aria-hidden />
+            {t.offline.retry}
+          </button>
+        </div>
+      )}
+
+      <main className="flex-1 lg:min-h-0 lg:overflow-hidden">
+        {!state && status === "loading" && <p className="px-4 py-10 text-ink-soft">{t.offline.loading}</p>}
+        {!state && status === "error" && (
+          <div className="px-4 py-10">
+            <p className="text-[16px]">{t.offline.error}</p>
+            <button type="button" onClick={refresh} className="mt-4 h-12 rounded-xl bg-ink px-5 font-medium text-paper">
+              {t.offline.retry}
+            </button>
+          </div>
+        )}
+        {state && (
+          <>
+            {tab === "today" && <TodayTab state={state} refresh={refresh} />}
+            {tab !== "today" && (
+              <div className="mx-auto max-w-[720px] pb-28 lg:h-full lg:overflow-y-auto lg:pb-8">
+                {tab === "week" && <WeekTab state={state} />}
+                {tab === "farm" && <FarmTab state={state} />}
+                {(tab === "leaf" || tab === "ask" || tab === "satellite") && (
+                  <section className="px-4 py-6">
+                    <h2 className="text-[22px] font-semibold tracking-tight">{t.shell.tabs[tab]}</h2>
+                    <p className="mt-2 text-ink-soft">{t.shell.soon}</p>
+                  </section>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </main>
+
+      {/* phone: bottom tab bar */}
+      <nav aria-label={t.farm.title} className="pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-line bg-paper/95 backdrop-blur lg:hidden">
+        <ul className="grid grid-cols-5">
+          {TABS.map((x) => (
+            <li key={x.id}>{tabButton(x.id, x.icon, "flex h-14 w-full flex-col items-center justify-center gap-0.5 text-[11px]")}</li>
+          ))}
+        </ul>
+      </nav>
+    </div>
   );
 }

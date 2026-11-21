@@ -45,4 +45,7 @@ export function useT(): Dict {
   return dictionaries[useLang((s) => s.lang)];
 }
 
-export const useLocale = () => LANGS.find((l) => l.id === useLang((s) => s.lang))!.locale;
+export function useLocale(): string {
+  const lang = useLang((s) => s.lang); // one hook call, always — never inside a callback
+  return LANGS.find((l) => l.id === lang)!.locale;
+}

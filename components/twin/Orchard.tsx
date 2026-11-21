@@ -3,71 +3,92 @@
 import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import type { DailyPlan } from "@/lib/engine/types";
-import { useApp } from "@/lib/store";
-import { COLORS, PARCEL, PER_ROW, ROWS } from "./layout";
+import type { CropId, DailyPlan, ParcelConfig } from "@/lib/engine/types";
+import { COLORS, PARCEL } from "./layout";
 import { frameAt } from "./useTwinFrame";
 
 const dummy = new THREE.Object3D();
-const healthy = new THREE.Color(COLORS.canopy);
-const stressed = new THREE.Color(COLORS.canopyStressed);
 const canopyTarget = new THREE.Color();
 
-function treePositions() {
+interface Look {
+  rows: number;
+  cols: number;
+  trunkH: number;
+  canopyR: number;
+  canopyY: number;
+  squash: number; // canopy height relative to its width
+  color: string;
+  stressed: string;
+}
+
+// What each crop looks like from above: trees are tall and sparse, vegetables low and dense.
+const LOOKS: Record<CropId, Look> = {
+  citrus: { rows: 12, cols: 13, trunkH: 0.36, canopyR: 0.28, canopyY: 0.48, squash: 1, color: "#3d7a3a", stressed: "#a59a3a" },
+  olive: { rows: 10, cols: 11, trunkH: 0.4, canopyR: 0.34, canopyY: 0.55, squash: 0.85, color: "#7a8f58", stressed: "#a8995a" },
+  datePalm: { rows: 6, cols: 7, trunkH: 1.0, canopyR: 0.34, canopyY: 1.12, squash: 0.55, color: "#3f7d45", stressed: "#a59a3a" },
+  grape: { rows: 14, cols: 22, trunkH: 0.25, canopyR: 0.17, canopyY: 0.36, squash: 1.2, color: "#5b8f3a", stressed: "#b0a23c" },
+  tomato: { rows: 18, cols: 26, trunkH: 0.1, canopyR: 0.11, canopyY: 0.16, squash: 1.1, color: "#4a8f3f", stressed: "#b0a23c" },
+  pepper: { rows: 18, cols: 26, trunkH: 0.1, canopyR: 0.1, canopyY: 0.15, squash: 1.1, color: "#3f8a45", stressed: "#b0a23c" },
+  potato: { rows: 18, cols: 26, trunkH: 0.06, canopyR: 0.12, canopyY: 0.11, squash: 0.8, color: "#5a9a45", stressed: "#b0a23c" },
+  watermelon: { rows: 9, cols: 13, trunkH: 0.04, canopyR: 0.22, canopyY: 0.12, squash: 0.5, color: "#2f7a45", stressed: "#a8a03c" },
+};
+
+function positions(rows: number, cols: number) {
   const out: [number, number][] = [];
-  const dx = (PARCEL.x1 - PARCEL.x0) / PER_ROW;
-  const dz = (PARCEL.z1 - PARCEL.z0) / ROWS;
-  for (let r = 0; r < ROWS; r++)
-    for (let c = 0; c < PER_ROW; c++) out.push([PARCEL.x0 + dx * (c + 0.5), PARCEL.z0 + dz * (r + 0.5)]);
+  const dx = (PARCEL.x1 - PARCEL.x0) / cols;
+  const dz = (PARCEL.z1 - PARCEL.z0) / rows;
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) out.push([PARCEL.x0 + dx * (c + 0.5), PARCEL.z0 + dz * (r + 0.5)]);
   return out;
 }
 
-/** Citrus orchard (instanced: 2 draw calls) + drip lines + wetted bulbs under each tree. */
-export function Orchard({ plan, shadows }: { plan: DailyPlan; shadows: boolean }) {
+/** The crop (instanced: 3 draw calls) + irrigation laterals + wetted bulbs under each plant. */
+export function Orchard({ plan, parcel, shadows }: { plan: DailyPlan; parcel: ParcelConfig; shadows: boolean }) {
+  const look = LOOKS[parcel.crop];
+  const pos = useMemo(() => positions(look.rows, look.cols), [look.rows, look.cols]);
+  const count = pos.length;
+  const healthy = useMemo(() => new THREE.Color(look.color), [look.color]);
+  const stressed = useMemo(() => new THREE.Color(look.stressed), [look.stressed]);
+
   const trunks = useRef<THREE.InstancedMesh>(null!);
   const canopies = useRef<THREE.InstancedMesh>(null!);
   const bulbs = useRef<THREE.InstancedMesh>(null!);
   const bulbMat = useRef<THREE.MeshBasicMaterial>(null!);
+  const canopyMat = useRef<THREE.MeshStandardMaterial>(null!);
   const dripMat = useMemo(
     () => new THREE.MeshStandardMaterial({ color: "#2b2f36", emissive: COLORS.water, emissiveIntensity: 0 }),
     [],
   );
-  const canopyMat = useRef<THREE.MeshStandardMaterial>(null!);
-  const pos = useMemo(treePositions, []);
-  const count = pos.length;
-  const parcel = useApp((s) => s.parcel);
 
   useLayoutEffect(() => {
+    const k = look.canopyR / 0.28; // canopy geometry radius is 0.28
     pos.forEach(([x, z], i) => {
       const s = 0.85 + ((i * 37) % 11) / 40; // deterministic size variety
-      dummy.position.set(x, 0.18 * s, z);
-      dummy.scale.set(1, s, 1);
+      dummy.position.set(x, (look.trunkH / 2) * s, z);
+      dummy.scale.set(1, (look.trunkH / 0.36) * s, 1);
       dummy.rotation.set(0, 0, 0);
       dummy.updateMatrix();
       trunks.current.setMatrixAt(i, dummy.matrix);
-      dummy.position.set(x, 0.48 * s, z);
-      dummy.scale.setScalar(s);
+      dummy.position.set(x, look.canopyY * s, z);
+      dummy.scale.set(k * s, k * s * look.squash, k * s);
       dummy.rotation.set(0, (i * 1.7) % Math.PI, 0);
       dummy.updateMatrix();
       canopies.current.setMatrixAt(i, dummy.matrix);
       dummy.position.set(x, 0.006, z);
       dummy.rotation.set(-Math.PI / 2, 0, 0);
-      dummy.scale.setScalar(1);
+      dummy.scale.setScalar(Math.max(0.6, k));
       dummy.updateMatrix();
       bulbs.current.setMatrixAt(i, dummy.matrix);
     });
     trunks.current.instanceMatrix.needsUpdate = true;
     canopies.current.instanceMatrix.needsUpdate = true;
     bulbs.current.instanceMatrix.needsUpdate = true;
-  }, [pos]);
+  }, [pos, look]);
 
   useFrame((state, delta) => {
     const f = frameAt(plan, parcel.basinCapacityM3, parcel.pv.kWp);
-    // drip lines glow + wetted bulbs grow while irrigating
-    const pulse = f.irrigating ? 0.6 + 0.4 * Math.sin(state.clock.elapsedTime * 4) : 0;
-    dripMat.emissiveIntensity = pulse;
-    const targetOpacity = f.irrigating ? 0.55 : 0;
-    bulbMat.current.opacity += (targetOpacity - bulbMat.current.opacity) * Math.min(1, delta * 2);
+    // laterals glow + wetted bulbs grow while irrigating
+    dripMat.emissiveIntensity = f.irrigating ? 0.6 + 0.4 * Math.sin(state.clock.elapsedTime * 4) : 0;
+    bulbMat.current.opacity += ((f.irrigating ? 0.55 : 0) - bulbMat.current.opacity) * Math.min(1, delta * 2);
     // canopy colour reflects water stress
     const stress = plan.stress === "severe" ? 1 : plan.stress === "mild" ? 0.45 : 0;
     canopyTarget.copy(healthy).lerp(stressed, stress);
@@ -75,29 +96,24 @@ export function Orchard({ plan, shadows }: { plan: DailyPlan; shadows: boolean }
   });
 
   const rowLen = PARCEL.x1 - PARCEL.x0;
-  const dz = (PARCEL.z1 - PARCEL.z0) / ROWS;
+  const dz = (PARCEL.z1 - PARCEL.z0) / look.rows;
 
   return (
     <group>
-      <instancedMesh ref={trunks} args={[undefined, undefined, count]} castShadow={shadows}>
+      <instancedMesh key={`t${count}`} ref={trunks} args={[undefined, undefined, count]} castShadow={shadows}>
         <cylinderGeometry args={[0.035, 0.05, 0.36, 5]} />
         <meshStandardMaterial color={COLORS.trunk} roughness={1} />
       </instancedMesh>
-      <instancedMesh ref={canopies} args={[undefined, undefined, count]} castShadow={shadows}>
+      <instancedMesh key={`c${count}`} ref={canopies} args={[undefined, undefined, count]} castShadow={shadows}>
         <icosahedronGeometry args={[0.28, 1]} />
-        <meshStandardMaterial ref={canopyMat} color={COLORS.canopy} roughness={0.8} flatShading />
+        <meshStandardMaterial ref={canopyMat} color={look.color} roughness={0.8} flatShading />
       </instancedMesh>
-      <instancedMesh ref={bulbs} args={[undefined, undefined, count]}>
+      <instancedMesh key={`b${count}`} ref={bulbs} args={[undefined, undefined, count]}>
         <circleGeometry args={[0.26, 16]} />
         <meshBasicMaterial ref={bulbMat} color={COLORS.soilWet} transparent opacity={0} depthWrite={false} />
       </instancedMesh>
-      {/* drip laterals, one per row */}
-      {Array.from({ length: ROWS }, (_, r) => (
-        <mesh
-          key={r}
-          material={dripMat}
-          position={[(PARCEL.x0 + PARCEL.x1) / 2, 0.02, PARCEL.z0 + dz * (r + 0.5) + 0.12]}
-        >
+      {Array.from({ length: look.rows }, (_, r) => (
+        <mesh key={r} material={dripMat} position={[(PARCEL.x0 + PARCEL.x1) / 2, 0.02, PARCEL.z0 + dz * (r + 0.5) + 0.12]}>
           <boxGeometry args={[rowLen, 0.02, 0.02]} />
         </mesh>
       ))}

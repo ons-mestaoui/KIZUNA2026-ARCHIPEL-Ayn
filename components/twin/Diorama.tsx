@@ -3,21 +3,11 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { thetaFromPercent } from "@/lib/engine/waterBalance";
-import { useApp } from "@/lib/store";
 import { BLOCK, COLORS, EQUIP_X, LAYERS, PARCEL } from "./layout";
 
-const dry = new THREE.Color(COLORS.soilDry);
-const wet = new THREE.Color(COLORS.soilWet);
+const dryColor = new THREE.Color(COLORS.soilDry);
+const wetColor = new THREE.Color(COLORS.soilWet);
 const target = new THREE.Color();
-
-/** 0 = bone dry (≤ 0.6·θWP), 1 = field capacity or wetter. */
-export function wetness(soilPct: number): number {
-  const { soil } = useApp.getState().parcel;
-  const theta = thetaFromPercent(soilPct, soil);
-  const lo = soil.wiltingPoint * 0.6;
-  return THREE.MathUtils.clamp((theta - lo) / (soil.fieldCapacity - lo), 0, 1);
-}
 
 /** Procedural dried-mud crack pattern (seeded so it's identical every load). */
 function useCrackTexture() {
@@ -54,15 +44,17 @@ function useCrackTexture() {
   }, []);
 }
 
-export function Diorama() {
+/** `wet` 0 (cracked, pale) … 1 (dark, moist). Changes ease in over ~1 s, so pouring water is visible. */
+export function Diorama({ wet }: { wet: number }) {
   const topsoil = useRef<THREE.MeshStandardMaterial>(null!);
   const cracks = useRef<THREE.MeshBasicMaterial>(null!);
   const crackTex = useCrackTexture();
+  const wetRef = useRef(wet);
+  wetRef.current = wet;
 
-  // Smoothly follow the sensor: pouring water visibly darkens the soil over ~1 s.
   useFrame((_, delta) => {
-    const w = wetness(useApp.getState().soilPct);
-    target.copy(dry).lerp(wet, w);
+    const w = wetRef.current;
+    target.copy(dryColor).lerp(wetColor, w);
     topsoil.current.color.lerp(target, Math.min(1, delta * 3));
     const crackTarget = THREE.MathUtils.clamp(1 - w * 1.6, 0, 1) * 0.85;
     cracks.current.opacity += (crackTarget - cracks.current.opacity) * Math.min(1, delta * 3);

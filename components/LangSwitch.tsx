@@ -21,7 +21,7 @@ export function LangSwitch({ className = "" }: { className?: string }) {
       role="radiogroup"
       aria-label={t.common.language}
       dir="ltr"
-      className={`inline-flex rounded-full border border-line bg-paper p-1 text-[14px] ${className}`}
+      className={`inline-flex rounded-full border border-line bg-paper p-1 text-[13px] sm:text-[14px] ${className}`}
     >
       {LANGS.map((l) => (
         <button
@@ -31,7 +31,7 @@ export function LangSwitch({ className = "" }: { className?: string }) {
           aria-checked={lang === l.id}
           lang={l.id}
           onClick={() => setLang(l.id)}
-          className={`h-9 rounded-full px-3 ${lang === l.id ? "bg-ink text-paper" : "text-ink"}`}
+          className={`h-9 rounded-full px-2.5 sm:px-3 ${lang === l.id ? "bg-ink text-paper" : "text-ink"}`}
         >
           {l.label}
         </button>

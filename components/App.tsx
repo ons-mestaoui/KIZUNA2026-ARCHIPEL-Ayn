@@ -120,6 +120,7 @@ export default function App() {
   useLiveWeather();
   const plan = usePlan();
   const tab = useApp((s) => s.tab);
+  const parcel = useApp((s) => s.parcel);
 
   return (
     <div className="mx-auto min-h-svh max-w-[1600px] lg:grid lg:h-svh lg:grid-cols-[minmax(0,1fr)_440px] lg:grid-rows-[auto_minmax(0,1fr)]">
@@ -143,7 +144,7 @@ export default function App() {
             <SoilSensor />
           </>
         )}
-        {tab === "energy" && <EnergyPanel plan={plan} />}
+        {tab === "energy" && <EnergyPanel plan={plan} parcel={parcel} />}
         {tab === "leaf" && (
           <Placeholder title="Leaf check">Photograph a sick leaf to find out if it is thirst, a deficiency or a pest such as Tuta absoluta.</Placeholder>
         )}

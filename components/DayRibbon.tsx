@@ -3,11 +3,13 @@
 import { Pause, Play } from "lucide-react";
 import { useCallback, useRef } from "react";
 import type { DailyPlan, Window } from "@/lib/engine/types";
+import { fmt } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/useLang";
 import { useApp } from "@/lib/store";
 
 const W = 240; // viewBox width: 10 units per hour
-const H = 56;
-const BASE = 44; // baseline of the sun-power area
+const H = 62;
+const BASE = 42; // baseline of the sun-power area
 
 const toHour = (hhmm: string) => {
   const [h, m] = hhmm.split(":").map(Number);
@@ -20,18 +22,20 @@ const fmtHour = (h: number) => {
 
 /**
  * The day at a glance — and the scrubber for the 3D twin.
- * Gold area = solar power available; gold bar = planned pumping; turquoise bars = drip irrigation.
+ * Gold area = solar power available; gold bar = pumping; turquoise bar = watering.
+ * The time axis always runs left to right, in every language.
  */
 export function DayRibbon({ plan }: { plan: DailyPlan }) {
+  const t = useT();
   const hour = useApp((s) => s.hour);
   const playing = useApp((s) => s.playing);
   const setHour = useApp((s) => s.setHour);
   const setPlaying = useApp((s) => s.setPlaying);
-  const parcel = useApp((s) => s.parcel);
   const box = useRef<HTMLDivElement>(null);
 
-  const maxPv = parcel.pv.kWp * 1000 * 0.8;
-  const pts = plan.hours.map((s, i) => `${i * 10 + 5},${BASE - (s.pvW / maxPv) * 36}`);
+  const solar = plan.source === "solar_basin" || plan.source === "solar_direct";
+  const maxPv = Math.max(1, ...plan.hours.map((h) => h.pvW));
+  const pts = plan.hours.map((s, i) => `${i * 10 + 5},${BASE - (s.pvW / maxPv) * 34}`);
   const area = `M0,${BASE} L${pts.join(" L")} L${W},${BASE} Z`;
 
   const idx = Math.min(23, Math.floor(hour));
@@ -48,11 +52,19 @@ export function DayRibbon({ plan }: { plan: DailyPlan }) {
     [setHour, setPlaying],
   );
 
-  const bar = (w: Window, cls: string) => {
+  const bar = (w: Window, cls: string, row: number) => {
     const x0 = toHour(w.start) * 10;
     const x1 = Math.max(x0 + 2, toHour(w.end) * 10);
-    return <rect key={cls + w.start} x={x0} y={BASE + 4} width={x1 - x0} height={7} rx={2} className={cls} />;
+    return <rect key={`${cls}${w.start}`} x={x0} y={BASE + 4 + row * 8} width={x1 - x0} height={6} rx={2} className={cls} />;
   };
+
+  const readout = [
+    fmtHour(hour),
+    solar ? fmt(t.ribbon.readout.sun, { kw: (step.pvW / 1000).toFixed(1) }) : null,
+    step.pumpOn ? fmt(t.ribbon.readout.pumping, { m3: step.pumpedM3.toFixed(0) }) : null,
+    step.irrigating ? fmt(t.ribbon.readout.watering, { m3: step.irrigatedM3.toFixed(0) }) : null,
+    plan.source === "solar_basin" ? fmt(t.ribbon.readout.basin, { m3: Math.round(basinNow) }) : null,
+  ].filter(Boolean);
 
   return (
     <div className="flex items-center gap-3 px-4 py-3">
@@ -60,27 +72,24 @@ export function DayRibbon({ plan }: { plan: DailyPlan }) {
         type="button"
         onClick={() => setPlaying(!playing)}
         className="grid size-11 shrink-0 place-items-center rounded-full bg-ink text-paper"
-        aria-label={playing ? "Pause the day" : "Play the day"}
+        aria-label={playing ? t.ribbon.pause : t.ribbon.play}
       >
-        {playing ? <Pause size={20} /> : <Play size={20} className="translate-x-px" />}
+        {playing ? <Pause size={20} /> : <Play size={20} className="translate-x-px rtl:-translate-x-px" />}
       </button>
 
       <div className="min-w-0 flex-1">
         {/* readout = the crosshair tooltip for the scrubber */}
-        <p className="tabular mb-1 truncate text-[13px] text-ink-soft" aria-live="polite">
-          <span className="font-semibold text-ink">{fmtHour(hour)}</span>
-          {"  "}Sun {(step.pvW / 1000).toFixed(1)} kW
-          {step.pumpOn ? ` · pumping ${step.pumpedM3.toFixed(0)} m³` : ""}
-          {step.irrigating ? ` · drip ${step.irrigatedM3.toFixed(0)} m³` : ""}
-          {" · basin "}
-          {Math.round(basinNow)} m³
+        <p className="tabular mb-1 truncate text-[13px] text-ink-soft" aria-live="polite" dir="auto">
+          <span className="font-semibold text-ink">{readout[0]}</span>
+          {readout.slice(1).map((r) => ` · ${r}`)}
         </p>
 
         <div
           ref={box}
+          dir="ltr"
           role="slider"
           tabIndex={0}
-          aria-label="Time of day"
+          aria-label={t.ribbon.time}
           aria-valuemin={0}
           aria-valuemax={24}
           aria-valuenow={Math.round(hour * 10) / 10}
@@ -100,15 +109,19 @@ export function DayRibbon({ plan }: { plan: DailyPlan }) {
             }
           }}
         >
-          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="block h-14 w-full">
+          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="block h-16 w-full">
             {[6, 12, 18].map((h) => (
               <line key={h} x1={h * 10} x2={h * 10} y1={4} y2={BASE} stroke="var(--line)" strokeWidth={0.6} />
             ))}
-            <path d={area} fill="var(--mark-sun)" fillOpacity={0.22} />
-            <polyline points={pts.join(" ")} fill="none" stroke="var(--mark-sun)" strokeWidth={1.4} vectorEffect="non-scaling-stroke" />
+            {solar && (
+              <>
+                <path d={area} fill="var(--mark-sun)" fillOpacity={0.22} />
+                <polyline points={pts.join(" ")} fill="none" stroke="var(--mark-sun)" strokeWidth={1.4} vectorEffect="non-scaling-stroke" />
+              </>
+            )}
             <line x1={0} x2={W} y1={BASE} y2={BASE} stroke="var(--ink-soft)" strokeWidth={0.6} />
-            {plan.pumpWindow && bar(plan.pumpWindow, "fill-mark-sun")}
-            {plan.irrigationWindows.map((w) => bar(w, "fill-mark-water"))}
+            {solar && plan.pumpWindow && bar(plan.pumpWindow, "fill-mark-sun", 0)}
+            {plan.irrigationWindows.map((w) => bar(w, "fill-mark-water", solar ? 1 : 0))}
             <line x1={hour * 10} x2={hour * 10} y1={0} y2={H} stroke="var(--ink)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
           </svg>
           <div className="tabular mt-0.5 flex justify-between text-[11px] text-ink-soft" aria-hidden>
@@ -121,18 +134,22 @@ export function DayRibbon({ plan }: { plan: DailyPlan }) {
         </div>
 
         <ul className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink-soft">
-          <li className="flex items-center gap-1.5">
-            <span className="h-2 w-3 rounded-sm bg-mark-sun/30 ring-1 ring-mark-sun" /> Solar power
-          </li>
-          <li className="flex items-center gap-1.5">
-            <span className="h-2 w-3 rounded-sm bg-mark-sun" />
-            {plan.pumpWindow ? `Pump ${plan.pumpWindow.start}–${plan.pumpWindow.end}` : "Pump off today"}
-          </li>
+          {solar && (
+            <>
+              <li className="flex items-center gap-1.5">
+                <span className="h-2 w-3 rounded-sm bg-mark-sun/30 ring-1 ring-mark-sun" /> {t.ribbon.sun}
+              </li>
+              <li className="flex items-center gap-1.5">
+                <span className="h-2 w-3 rounded-sm bg-mark-sun" />
+                {plan.pumpWindow ? fmt(t.ribbon.pump, { start: plan.pumpWindow.start, end: plan.pumpWindow.end }) : t.ribbon.pumpOff}
+              </li>
+            </>
+          )}
           <li className="flex items-center gap-1.5">
             <span className="h-2 w-3 rounded-sm bg-mark-water" />
             {plan.irrigationWindows.length
-              ? `Drip ${plan.irrigationWindows.map((w) => w.start).join(" & ")}`
-              : "No drip today"}
+              ? fmt(t.ribbon.water, { times: plan.irrigationWindows.map((w) => w.start).join(" · ") })
+              : t.ribbon.noWater}
           </li>
         </ul>
       </div>

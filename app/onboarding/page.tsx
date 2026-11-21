@@ -1,6 +1,5 @@
-import { FarmerApp } from "@/components/farmer/FarmerApp";
+import { Wizard } from "@/components/onboarding/Wizard";
 
-// B3 replaces this with the 4-step farm setup wizard.
 export default function Page() {
-  return <FarmerApp />;
+  return <Wizard />;
 }
