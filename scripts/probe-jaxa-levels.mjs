@@ -34,7 +34,7 @@ for (const lv of levels) {
       // reached the latitude items
       const item = names.find((n) => { const m = n.replace(".json", "").match(/^([NS])(\d+\.\d+)-([NS])(\d+\.\d+)$/); if (!m) return false; const a = (m[1] === "S" ? -1 : 1) * Number(m[2]); const b = (m[3] === "S" ? -1 : 1) * Number(m[4]); return lat >= Math.min(a, b) && lat <= Math.max(a, b); }) ?? names[0];
       const it = await j(`${base}/${path}/${item}`);
-      const [band, a] = Object.entries(it.assets)[0];
+      const [, a] = Object.entries(it.assets)[0];
       const href = new URL(a.href, `${base}/${path}/${item}`).href;
       const t0 = Date.now();
       const res = await fetch(href);

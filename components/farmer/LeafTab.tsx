@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- these are the farmer's own photos as data: URLs; next/image cannot optimise them */
 
 import { Bug, Camera, CircleHelp, Droplets, ImagePlus, Leaf, Microscope, Sprout } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -132,7 +133,7 @@ export function LeafTab() {
 
       {phase === "analyzing" && (
         <div role="status" className="mt-5 flex items-center gap-3 rounded-xl bg-paper px-3.5 py-3 ring-1 ring-line">
-          {preview && /* eslint-disable-next-line @next/next/no-img-element */ <img src={preview} alt="" className="size-16 rounded-lg object-cover" />}
+          {preview && <img src={preview} alt="" className="size-16 rounded-lg object-cover" />}
           <span className="flex items-center gap-2 text-[15px]">
             <span className="size-4 animate-spin rounded-full border-2 border-ink-soft border-t-transparent" aria-hidden />
             {t.leaf.analyzing}
@@ -149,7 +150,7 @@ export function LeafTab() {
       {r && current && phase === "idle" && (
         <article className="mt-5 rounded-2xl bg-paper p-4 ring-1 ring-line" aria-live="polite">
           <div className="flex items-start gap-3">
-            {preview && /* eslint-disable-next-line @next/next/no-img-element */ <img src={preview} alt="" className="size-20 shrink-0 rounded-xl object-cover" />}
+            {preview && <img src={preview} alt="" className="size-20 shrink-0 rounded-xl object-cover" />}
             <div className="min-w-0">
               <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-medium ${TONE[r.category]}`}>
                 {ICON[r.category]}
@@ -241,7 +242,7 @@ export function LeafTab() {
                   className="flex min-h-16 w-full items-center gap-3 py-2 text-start"
                 >
                   {h.thumb ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */ <img src={h.thumb} alt="" className="size-12 shrink-0 rounded-lg object-cover" />
+                    <img src={h.thumb} alt="" className="size-12 shrink-0 rounded-lg object-cover" />
                   ) : (
                     <span className={`grid size-12 shrink-0 place-items-center rounded-lg ${TONE[h.result.category]}`}>{ICON[h.result.category]}</span>
                   )}

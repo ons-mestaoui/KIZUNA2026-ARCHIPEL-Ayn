@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { clearStateCache } from "@/lib/state-cache";
 
-const DEMO_ENTRY = "/api/demo/enter";
 const HOLD_MS = 1500;
+
+// A full page load (not a client-side route change): the entry sets the session cookie and redirects.
+const enter = () => {
+  clearStateCache(); // the demo replaces whoever was signed in; their saved plan must not stay behind
+  window.location.assign(new URL("/api/demo/enter", window.location.origin).href);
+};
 
 /**
  * Hidden doors into the demo. The landing page never mentions it:
@@ -17,10 +23,10 @@ export function DemoTrigger({ children }: { children: React.ReactNode }) {
   const fired = useRef(false);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("demo") === "kizuna") window.location.assign(DEMO_ENTRY);
+    if (new URLSearchParams(window.location.search).get("demo") === "kizuna") enter();
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName ?? "";
-      if (e.shiftKey && e.key.toLowerCase() === "d" && !/INPUT|TEXTAREA|SELECT/.test(tag)) window.location.assign(DEMO_ENTRY);
+      if (e.shiftKey && e.key.toLowerCase() === "d" && !/INPUT|TEXTAREA|SELECT/.test(tag)) enter();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -38,7 +44,7 @@ export function DemoTrigger({ children }: { children: React.ReactNode }) {
         cancel();
         timer.current = setTimeout(() => {
           fired.current = true;
-          window.location.assign(DEMO_ENTRY);
+          enter();
         }, HOLD_MS);
       }}
       onPointerUp={cancel}

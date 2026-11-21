@@ -139,6 +139,7 @@ function MetricCard({ metric }: { metric: Metric }) {
     }
   }, [metric]);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount: the card shows its loading state first
     load();
   }, [load]);
 

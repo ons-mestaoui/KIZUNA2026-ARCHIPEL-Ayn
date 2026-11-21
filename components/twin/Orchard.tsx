@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/immutability -- react-three-fiber is imperative by design: useFrame mutates three.js objects every frame */
 
 import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";

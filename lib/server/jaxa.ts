@@ -120,15 +120,25 @@ export interface SeriesPoint {
  * The last `days` days that have been published, oldest first. Days are fetched in parallel;
  * the walk starts at the dataset's usual lag and looks 2 days further back than `days`
  * (in case the newest files are not out yet).
+ *
+ * `failed` counts downloads that broke (no network, timeout, a JAXA error). That is not the same as a file
+ * that is simply not published yet, and callers need to tell the two apart: one is worth retrying at once.
  */
-export async function readSeries(ds: Dataset, lat: number, lon: number, days = 7): Promise<{ points: SeriesPoint[]; pixelKm: number | null }> {
+export async function readSeries(
+  ds: Dataset,
+  lat: number,
+  lon: number,
+  days = 7,
+): Promise<{ points: SeriesPoint[]; pixelKm: number | null; failed: number }> {
   const backs = Array.from({ length: days + 2 }, (_, i) => ds.lagDays + i);
+  let failed = 0;
   const results = await Promise.all(
     backs.map(async (back) => {
       const day = new Date(Date.now() - back * 86_400_000);
       try {
         return { day, r: await readDay(ds, day, lat, lon) };
       } catch {
+        failed++;
         return { day, r: "missing" as const };
       }
     }),
@@ -137,5 +147,5 @@ export async function readSeries(ds: Dataset, lat: number, lon: number, days = 7
   const points = have
     .map(({ day, r }) => ({ date: day.toISOString().slice(0, 10), value: r ? r.value : null, distKm: r ? r.distKm : null }))
     .reverse();
-  return { points, pixelKm: have.find((x) => x.r)?.r?.pixelKm ?? null };
+  return { points, pixelKm: have.find((x) => x.r)?.r?.pixelKm ?? null, failed };
 }

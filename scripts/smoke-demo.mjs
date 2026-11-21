@@ -74,6 +74,12 @@ if (process.env.DEMO_PASSWORD) {
   ok(r.status === 401, "…and a wrong password does not", `HTTP ${r.status}`);
 }
 
+// a page on another site must not be able to trigger the entry (an <img> or a link would be enough)
+r = await fetch(base + "/api/demo/enter", { redirect: "manual", headers: { "Sec-Fetch-Site": "cross-site", "Sec-Fetch-Mode": "navigate" } });
+ok(r.status === 403, "a cross-site request to the entry is refused", `HTTP ${r.status}`);
+r = await fetch(base + "/api/demo/enter", { redirect: "manual", headers: { "Sec-Fetch-Site": "same-origin" } });
+ok(r.status === 303, "…while a same-site one works", `HTTP ${r.status}`);
+
 // a normal farmer cannot touch the demo
 const farmer = client();
 await farmer("/api/auth/sign-up/email", { method: "POST", body: JSON.stringify({ name: "F", email: `demo-iso+${Date.now()}@example.com`, password: "demo-iso-pass-123" }) });

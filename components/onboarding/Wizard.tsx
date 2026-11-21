@@ -27,6 +27,7 @@ export function Wizard() {
 
   // Default planting date = 30 days ago (computed here, not at render, so prerendering stays deterministic).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- must run after mount (see initialForm)
     setForm((f) => (f.plantingDate ? f : { ...f, plantingDate: todayISO(-30) }));
   }, []);
 

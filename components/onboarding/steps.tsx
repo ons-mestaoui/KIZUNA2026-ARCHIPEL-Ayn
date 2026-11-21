@@ -2,7 +2,7 @@
 
 import { Droplets, Fuel, LocateFixed, Search, Sun, SunMedium, Waves, Zap } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FlyTarget, LayerId } from "@/components/map/FarmMap";
 import { CROPS, CROP_IDS } from "@/lib/engine/crops";
 import { SOIL_TEXTURES } from "@/lib/engine/soils";
@@ -108,6 +108,7 @@ export function LocationStep({ form, set }: StepProps) {
   useEffect(() => {
     const term = q.trim();
     if (term.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear the list when the search box is emptied
       setResults(null);
       return;
     }
@@ -131,9 +132,10 @@ export function LocationStep({ form, set }: StepProps) {
   }, [q, lang]);
 
   const round = (v: number) => Math.round(v * 1e5) / 1e5;
+  const flights = useRef(0); // a new number per request, so the same place can be flown to twice
   const pick = (lat: number, lon: number, placeName?: string | null, zoom?: number) => {
     set({ lat: round(lat), lon: round(lon), ...(placeName !== undefined ? { placeName } : {}) });
-    if (zoom) setFly({ lat, lon, zoom, nonce: Date.now() });
+    if (zoom) setFly({ lat, lon, zoom, nonce: ++flights.current });
   };
 
   const locate = () => {

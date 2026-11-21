@@ -8,6 +8,7 @@ import { Logo } from "@/components/Logo";
 import { signIn, signUp } from "@/lib/auth-client";
 import { DEMO_EMAIL } from "@/lib/demo";
 import { useT } from "@/lib/i18n/useLang";
+import { clearStateCache } from "@/lib/state-cache";
 
 /** Only follow same-site relative paths after sign-in (no open redirects). */
 function safeNext(n: string | null, fallback: string) {
@@ -50,6 +51,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         setBusy(false);
         return;
       }
+      clearStateCache(); // a new sign-in starts clean: never show the previous person's saved plan
       // the demo account always opens the demo, not the farmer app
       router.push(email.toLowerCase() === DEMO_EMAIL ? "/demo" : safeNext(params.get("next"), isUp ? "/onboarding" : "/app"));
       router.refresh();

@@ -12,6 +12,8 @@ interface Msg {
   id: number | string;
   role: "user" | "assistant";
   content: string;
+  /** a canned answer from the presenter's offline mode, not a live one */
+  saved?: boolean;
 }
 const PHOTO_TAG = "📷 "; // the server marks messages that came with a photo
 
@@ -26,6 +28,7 @@ export function AskTab() {
   const [error, setError] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const file = useRef<HTMLInputElement>(null);
+  const sent = useRef(0);
 
   useEffect(() => {
     fetch("/api/ask")
@@ -55,7 +58,7 @@ export function AskTab() {
     const message = (question ?? text).trim();
     if (!message || busy) return;
     const attached = photo;
-    const temp = `tmp${Date.now()}`;
+    const temp = `tmp${++sent.current}`; // temporary id until the server saves the message
     setError(null);
     setBusy(true);
     setMsgs((m) => [...m, { id: temp, role: "user", content: (attached ? PHOTO_TAG : "") + message }]);
@@ -75,7 +78,7 @@ export function AskTab() {
         setPhoto(attached);
         setError(res.status === 429 ? fmt(t.ask.errors.quota, { cap: j.cap ?? "" }) : res.status === 503 ? t.ask.errors.busy : t.ask.errors.generic);
       } else {
-        setMsgs((m) => [...m, { id: j.id, role: "assistant", content: j.reply }]);
+        setMsgs((m) => [...m, { id: j.id, role: "assistant", content: j.reply, saved: j.model === "saved" }]);
       }
     } catch {
       setMsgs((m) => m.filter((x) => x.id !== temp));
@@ -145,6 +148,7 @@ export function AskTab() {
                 <p dir="auto" className="whitespace-pre-wrap">
                   {m.content}
                 </p>
+                {!mine && m.saved && <p className="mt-1.5 text-[12px] font-medium text-sun-deep">{t.demo.saved}</p>}
                 {!mine && <Speak text={speakable(m.content)} lang={detectSpeechLang(m.content, lang)} className="mt-2 h-10 px-3 text-[14px]" />}
               </div>
             </li>

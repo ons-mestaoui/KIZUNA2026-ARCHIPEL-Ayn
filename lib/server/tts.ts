@@ -10,6 +10,11 @@ export const VOICES = {
 } as const;
 export type VoiceLang = keyof typeof VOICES;
 
+/** The voice for a language: TTS_VOICE_AR / _JA / _EN / _FR overrides the default (e.g. ar-TN-ReemNeural). */
+export function voiceFor(lang: VoiceLang): string {
+  return process.env[`TTS_VOICE_${lang.toUpperCase()}`]?.trim() || VOICES[lang];
+}
+
 /** Synthesize text to MP3 bytes. Throws if the service is unreachable (e.g. blocked datacenter IP). */
 export async function synthesize(text: string, voice: string): Promise<Buffer> {
   const tts = new MsEdgeTTS({ connectionTimeoutMs: 8000, synthesisTimeoutMs: 20000 });

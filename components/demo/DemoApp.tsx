@@ -13,6 +13,7 @@ import { DecisionCard, SavingsNote } from "@/components/farmer/Decision";
 import { LeafTab } from "@/components/farmer/LeafTab";
 import { SatelliteTab } from "@/components/farmer/SatelliteTab";
 import { signOut, useSession } from "@/lib/auth-client";
+import { clearStateCache } from "@/lib/state-cache";
 import { DEMO_EMAIL } from "@/lib/demo";
 import { DEMO_LOCATION } from "@/lib/engine/parcel";
 import type { ScenarioId, WeatherScenario } from "@/lib/engine/types";
@@ -159,6 +160,7 @@ export default function DemoApp() {
             aria-label={t.demo.leave}
             title={t.demo.leave}
             onClick={async () => {
+              clearStateCache();
               await signOut();
               router.push("/");
               router.refresh();

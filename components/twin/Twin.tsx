@@ -55,6 +55,7 @@ export function TwinCanvas({ plan, parcel, lat, lon, tz, wet }: TwinProps) {
 
   // real-time shadows only on fine-pointer (desktop) devices
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a browser-only media query
     setShadows(window.matchMedia("(pointer: fine)").matches);
   }, []);
 

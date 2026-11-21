@@ -2,7 +2,7 @@ import { connection } from "next/server";
 import { generateWithFallback, CHAT_MODELS } from "@/lib/server/gemini";
 import { DATASETS, readSeries } from "@/lib/server/jaxa";
 import { getUser, unauthorized } from "@/lib/server/session";
-import { VOICES, synthesize } from "@/lib/server/tts";
+import { synthesize, voiceFor } from "@/lib/server/tts";
 
 export const maxDuration = 30;
 
@@ -32,8 +32,9 @@ export async function GET(request: Request) {
       return `${model}: ${(response.text ?? "").trim().slice(0, 40)}`;
     }),
     probe(async () => {
-      const mp3 = await synthesize("صباح الخير", VOICES.ar);
-      return `${VOICES.ar}: ${mp3.length} bytes`;
+      const voice = voiceFor("ar"); // the voice the farmers will actually hear
+      const mp3 = await synthesize("صباح الخير", voice);
+      return `${voice}: ${mp3.length} bytes`;
     }),
     probe(async () => {
       // Cap Bon, Tunisia

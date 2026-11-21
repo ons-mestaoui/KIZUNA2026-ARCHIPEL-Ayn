@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
 import { getUser, unauthorized } from "@/lib/server/session";
-import { VOICES, synthesize } from "@/lib/server/tts";
+import { synthesize, voiceFor } from "@/lib/server/tts";
 
 export const maxDuration = 30;
 
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return Response.json({ error: "invalid" }, { status: 422 });
   const { text, lang } = parsed.data;
 
-  const voice = (process.env[`TTS_VOICE_${lang.toUpperCase()}`] as string | undefined) ?? VOICES[lang];
+  const voice = voiceFor(lang);
   const key = createHash("sha1").update(`${voice}\n${text}`).digest("hex");
   const headers = { "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=86400" };
 

@@ -111,8 +111,17 @@ export async function GET(request: Request) {
   const farm = await getFarm(user.id);
   if (!farm) return Response.json({ items: [] });
   const rows = await db.select().from(schema.chatMessage).where(eq(schema.chatMessage.farmId, farm.id)).orderBy(desc(schema.chatMessage.id)).limit(40);
+  // In the presenter's offline mode every demo answer is a saved one (the demo is reset on each entry,
+  // so the history never mixes saved and live answers); the interface labels them.
+  const saved = user.email === DEMO_EMAIL && demoOffline();
   return Response.json({
-    items: rows.reverse().map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt.toISOString() })),
+    items: rows.reverse().map((m) => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      createdAt: m.createdAt.toISOString(),
+      ...(saved && m.role === "assistant" ? { saved: true } : {}),
+    })),
   });
 }
 

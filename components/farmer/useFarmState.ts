@@ -2,10 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { STATE_CACHE_KEY } from "@/lib/state-cache";
 import type { FarmStateDTO } from "@/lib/state-types";
 import { useApp } from "@/lib/store";
-
-export const STATE_CACHE_KEY = "gd-state-v1";
 
 type Status = "loading" | "ready" | "offline" | "error";
 
@@ -62,6 +61,7 @@ export function useFarmState() {
   }, [router]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount
     refresh();
   }, [refresh]);
 

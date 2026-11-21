@@ -1,7 +1,7 @@
 "use client";
 
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { BLOCK, COLORS, EQUIP_X, LAYERS, PARCEL } from "./layout";
 
@@ -9,15 +9,20 @@ const dryColor = new THREE.Color(COLORS.soilDry);
 const wetColor = new THREE.Color(COLORS.soilWet);
 const target = new THREE.Color();
 
-/** Procedural dried-mud crack pattern (seeded so it's identical every load). */
+/** A tiny seeded random generator, so the crack pattern is identical on every load. */
+function seeded(seed: number) {
+  let s = seed;
+  return () => (s = (s * 16807) % 2147483647) / 2147483647;
+}
+
+/** Procedural dried-mud crack pattern. */
 function useCrackTexture() {
   return useMemo(() => {
     const size = 512;
     const c = document.createElement("canvas");
     c.width = c.height = size;
     const g = c.getContext("2d")!;
-    let seed = 7;
-    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const rnd = seeded(7);
     g.strokeStyle = "rgba(60,38,20,0.9)";
     g.lineCap = "round";
     for (let i = 0; i < 70; i++) {
@@ -50,7 +55,9 @@ export function Diorama({ wet }: { wet: number }) {
   const cracks = useRef<THREE.MeshBasicMaterial>(null!);
   const crackTex = useCrackTexture();
   const wetRef = useRef(wet);
-  wetRef.current = wet;
+  useEffect(() => {
+    wetRef.current = wet; // read by useFrame, so no re-render per animation frame
+  }, [wet]);
 
   useFrame((_, delta) => {
     const w = wetRef.current;

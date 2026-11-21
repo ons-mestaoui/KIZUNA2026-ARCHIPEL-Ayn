@@ -13,6 +13,7 @@ export function JoinCard() {
   useEffect(() => {
     // NEXT_PUBLIC_APP_URL lets a laptop demo point the QR at its LAN address instead of "localhost"
     const target = `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/sign-up`;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the address is only known in the browser
     setUrl(target);
     let alive = true;
     import("qrcode")

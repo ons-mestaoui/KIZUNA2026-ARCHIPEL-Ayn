@@ -7,8 +7,8 @@ import { signOut } from "@/lib/auth-client";
 import { fmt } from "@/lib/i18n";
 import { useLocale, useT } from "@/lib/i18n/useLang";
 import { whenLabel } from "@/lib/format";
+import { clearStateCache } from "@/lib/state-cache";
 import type { FarmStateDTO } from "@/lib/state-types";
-import { STATE_CACHE_KEY } from "./useFarmState";
 
 export function FarmTab({ state }: { state: FarmStateDTO }) {
   const t = useT();
@@ -52,9 +52,7 @@ export function FarmTab({ state }: { state: FarmStateDTO }) {
         <button
           type="button"
           onClick={async () => {
-            try {
-              localStorage.removeItem(STATE_CACHE_KEY); // don't leave this farmer's plan on a shared phone
-            } catch {}
+            clearStateCache(); // don't leave this farmer's plan on a shared phone
             await signOut();
             router.push("/");
             router.refresh();

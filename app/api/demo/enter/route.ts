@@ -8,6 +8,12 @@ import { demoEnabled, dropDemoUser, ensureDemoUser, seedDemoFarm } from "@/lib/s
 export async function GET(request: Request) {
   if (!demoEnabled()) return new Response("Not found", { status: 404 });
 
+  // This GET signs the visitor in and resets the demo, so a page on another site must not be able to
+  // trigger it (an <img> tag or a link would be enough). Navigations that start on our own site, or are
+  // typed into the address bar, send Sec-Fetch-Site "same-origin" / "none"; anything else is refused.
+  const site = request.headers.get("sec-fetch-site");
+  if (site && site !== "same-origin" && site !== "none") return new Response("Forbidden", { status: 403 });
+
   const signIn = async () =>
     auth.api.signInEmail({ body: { email: DEMO_EMAIL, password: process.env.DEMO_PASSWORD! }, headers: request.headers, asResponse: true });
 
