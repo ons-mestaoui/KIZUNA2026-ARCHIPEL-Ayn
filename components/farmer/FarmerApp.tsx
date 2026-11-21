@@ -8,6 +8,7 @@ import { fmt } from "@/lib/i18n";
 import { whenLabel } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n/useLang";
 import { FarmTab } from "./FarmTab";
+import { LeafTab } from "./LeafTab";
 import { TodayTab } from "./TodayTab";
 import { useFarmState } from "./useFarmState";
 import { WeekTab } from "./WeekTab";
@@ -97,7 +98,8 @@ export function FarmerApp() {
               <div className="mx-auto max-w-[720px] pb-28 lg:h-full lg:overflow-y-auto lg:pb-8">
                 {tab === "week" && <WeekTab state={state} />}
                 {tab === "farm" && <FarmTab state={state} />}
-                {(tab === "leaf" || tab === "ask" || tab === "satellite") && (
+                {tab === "leaf" && <LeafTab />}
+                {(tab === "ask" || tab === "satellite") && (
                   <section className="px-4 py-6">
                     <h2 className="text-[22px] font-semibold tracking-tight">{t.shell.tabs[tab]}</h2>
                     <p className="mt-2 text-ink-soft">{t.shell.soon}</p>
