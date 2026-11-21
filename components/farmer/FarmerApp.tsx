@@ -3,6 +3,7 @@
 import { CalendarDays, CalendarRange, Leaf, MessageCircle, RefreshCw, Satellite, Settings, WifiOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useFieldData } from "@/components/field/useFieldData";
 import { LangSwitch } from "@/components/LangSwitch";
 import { Logo } from "@/components/Logo";
 import { useSession } from "@/lib/auth-client";
@@ -34,6 +35,8 @@ export function FarmerApp() {
   const { data: session } = useSession();
   const { state, status, savedAt, refresh } = useFarmState();
   const [tab, setTab] = useState<TabId>("today");
+  // one satellite view of the farmer's own field, shared by the Today tab and the Satellite tab
+  const fieldData = useFieldData((state?.farm.polygon?.length ?? 0) >= 3);
 
   // the demo account belongs in the demo, not in the farmer app
   useEffect(() => {
@@ -108,14 +111,14 @@ export function FarmerApp() {
         )}
         {state && (
           <>
-            {tab === "today" && <TodayTab state={state} refresh={refresh} />}
+            {tab === "today" && <TodayTab state={state} refresh={refresh} fieldData={fieldData} />}
             {tab !== "today" && (
               <div className="mx-auto max-w-[720px] pb-28 lg:h-full lg:overflow-y-auto lg:pb-8">
                 {tab === "week" && <WeekTab state={state} />}
                 {tab === "farm" && <FarmTab state={state} />}
                 {tab === "leaf" && <LeafTab />}
                 {tab === "ask" && <AskTab />}
-                {tab === "satellite" && <SatelliteTab lat={state.farm.lat} lon={state.farm.lon} polygon={state.farm.polygon} />}
+                {tab === "satellite" && <SatelliteTab lat={state.farm.lat} lon={state.farm.lon} polygon={state.farm.polygon} fieldData={fieldData} />}
               </div>
             )}
           </>

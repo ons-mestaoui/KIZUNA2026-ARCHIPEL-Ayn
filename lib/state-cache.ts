@@ -3,11 +3,15 @@
 // (sign-out, sign-in, the demo door): otherwise, on a shared phone or laptop, the next person whose
 // first request fails would be shown the previous person's farm.
 export const STATE_CACHE_KEY = "gd-state-v1";
+/** The last good satellite view of the field (outline, readings, zones): the same privacy rule applies. */
+export const FIELD_CACHE_KEY = "gd-field-v1";
 
 export function clearStateCache() {
-  try {
-    localStorage.removeItem(STATE_CACHE_KEY);
-  } catch {
-    /* storage blocked: nothing was saved */
+  for (const key of [STATE_CACHE_KEY, FIELD_CACHE_KEY]) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* storage blocked: nothing was saved */
+    }
   }
 }

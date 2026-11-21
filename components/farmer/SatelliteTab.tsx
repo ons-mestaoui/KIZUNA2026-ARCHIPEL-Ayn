@@ -3,18 +3,16 @@
 import { CloudRain, Droplets, Leaf, RefreshCw, Thermometer } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
+import { FieldTrendCard } from "@/components/field/FieldTrendCard";
+import type { FieldData } from "@/components/field/useFieldData";
 import type { LayerId } from "@/components/map/FarmMap";
 import type { LonLat } from "@/lib/field/types";
+import { type Point, Spark } from "./Spark";
 import { dayLabel } from "@/lib/format";
 import { fmt } from "@/lib/i18n";
 import { useLocale, useT } from "@/lib/i18n/useLang";
 
 type Metric = "rain" | "soil" | "heat" | "ndvi";
-interface Point {
-  date: string;
-  value: number | null;
-  distKm: number | null;
-}
 interface MetricData {
   metric: Metric;
   unit: string;
@@ -36,89 +34,6 @@ const STYLE: Record<Metric, { color: string; icon: React.ReactNode; kind: "bars"
   ndvi: { color: "var(--leaf)", icon: <Leaf size={18} aria-hidden />, kind: "line", digits: 2, domain: [0, 1] },
 };
 const ORDER: Metric[] = ["rain", "soil", "heat", "ndvi"];
-
-const W = 240;
-const H = 70;
-const PAD = 8;
-const BASE = H - 12;
-
-/** Time always runs left to right, in every language. Gaps (clouds, orbit gaps) are drawn as hollow marks. */
-function Spark({ data, metric, label }: { data: MetricData; metric: Metric; label: string }) {
-  const { color, kind, digits, domain } = STYLE[metric];
-  const pts = data.points;
-  const nums = pts.map((p) => p.value).filter((v): v is number => v !== null);
-  if (nums.length === 0) return null;
-  const lo = domain ? domain[0] : kind === "bars" ? 0 : Math.min(...nums) - (Math.max(...nums) - Math.min(...nums) || 1) * 0.15;
-  const hi = domain ? domain[1] : Math.max(kind === "bars" ? 2 : -Infinity, ...nums) + (kind === "line" ? (Math.max(...nums) - Math.min(...nums) || 1) * 0.15 : 0);
-  const n = pts.length;
-  const x = (i: number) => (kind === "bars" ? PAD + ((i + 0.5) * (W - 2 * PAD)) / n : n === 1 ? W / 2 : PAD + (i * (W - 2 * PAD)) / (n - 1));
-  const y = (v: number) => BASE - ((v - lo) / (hi - lo || 1)) * (BASE - 14);
-
-  // line segments, broken at gaps
-  const segments: string[] = [];
-  let run: string[] = [];
-  pts.forEach((p, i) => {
-    if (p.value === null) {
-      if (run.length) segments.push(run.join(" "));
-      run = [];
-    } else run.push(`${x(i)},${y(p.value)}`);
-  });
-  if (run.length) segments.push(run.join(" "));
-
-  const lastIdx = (() => {
-    for (let i = pts.length - 1; i >= 0; i--) if (pts[i].value !== null) return i;
-    return -1;
-  })();
-  const barW = ((W - 2 * PAD) / n) * 0.56;
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ direction: "ltr" }} className="mt-3 block w-full" role="img" aria-label={label}>
-      <line x1={PAD} x2={W - PAD} y1={BASE} y2={BASE} stroke="var(--ink-soft)" strokeWidth={0.6} />
-      <line x1={PAD} x2={W - PAD} y1={14} y2={14} stroke="var(--line)" strokeWidth={0.5} />
-      {kind === "line" &&
-        segments.map((s) => (
-          <polyline key={s} points={s} fill="none" stroke={color} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        ))}
-      {pts.map((p, i) =>
-        p.value === null ? (
-          <circle key={p.date} cx={x(i)} cy={BASE - 4} r={2.4} fill="none" stroke="var(--ink-soft)" strokeWidth={1} />
-        ) : kind === "bars" ? (
-          <rect
-            key={p.date}
-            x={x(i) - barW / 2}
-            y={Math.min(y(p.value), BASE - 1)}
-            width={barW}
-            height={Math.max(1, BASE - y(p.value))}
-            rx={1.6}
-            fill={color}
-            fillOpacity={i === lastIdx ? 1 : 0.55}
-          />
-        ) : (
-          <circle key={p.date} cx={x(i)} cy={y(p.value)} r={i === lastIdx ? 3.4 : 2.4} fill={color} stroke="var(--paper)" strokeWidth={1.2} />
-        ),
-      )}
-      {/* direct label on the latest value */}
-      {lastIdx >= 0 && (
-        <text
-          x={Math.min(Math.max(x(lastIdx), 14), W - 14)}
-          y={Math.max(9, y(pts[lastIdx].value!) - (kind === "bars" ? 4 : 7))}
-          fontSize={8}
-          fontWeight={600}
-          textAnchor="middle"
-          fill="var(--ink)"
-        >
-          {pts[lastIdx].value!.toFixed(digits)}
-        </text>
-      )}
-      <text x={PAD} y={H - 1} fontSize={7} fill="var(--ink-soft)">
-        {pts[0].date.slice(5)}
-      </text>
-      <text x={W - PAD} y={H - 1} fontSize={7} textAnchor="end" fill="var(--ink-soft)">
-        {pts[n - 1].date.slice(5)}
-      </text>
-    </svg>
-  );
-}
 
 function MetricCard({ metric }: { metric: Metric }) {
   const t = useT();
@@ -196,7 +111,7 @@ function MetricCard({ metric }: { metric: Metric }) {
                 {data.pixelKm !== null && fmt(t.satellite.pixel, { km: data.pixelKm.toFixed(1) })}
                 {total !== null && <> · {fmt(t.satellite.total, { mm: total.toFixed(1), n: data.points.length })}</>}
               </p>
-              <Spark data={data} metric={metric} label={`${m.title}: ${data.points.map((p) => `${shortDate(p.date)} ${p.value === null ? t.satellite.missing : p.value.toFixed(style.digits)}`).join(", ")}`} />
+              <Spark points={data.points} style={style} label={`${m.title}: ${data.points.map((p) => `${shortDate(p.date)} ${p.value === null ? t.satellite.missing : p.value.toFixed(style.digits)}`).join(", ")}`} />
             </>
           ) : (
             <p className="mt-3 text-[14px] text-ink-soft">{t.satellite.noReading}</p>
@@ -233,7 +148,7 @@ function MetricCard({ metric }: { metric: Metric }) {
   );
 }
 
-export function SatelliteTab({ lat, lon, polygon }: { lat: number; lon: number; polygon?: LonLat[] | null }) {
+export function SatelliteTab({ lat, lon, polygon, fieldData }: { lat: number; lon: number; polygon?: LonLat[] | null; fieldData?: FieldData }) {
   const t = useT();
   const [layer, setLayer] = useState<LayerId>("satellite");
   return (
@@ -269,6 +184,8 @@ export function SatelliteTab({ lat, lon, polygon }: { lat: number; lon: number; 
           ))}
         </div>
       </div>
+
+      {fieldData?.field && <FieldTrendCard field={fieldData.field} />}
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {ORDER.map((m) => (

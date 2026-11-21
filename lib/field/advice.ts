@@ -1,4 +1,4 @@
-import type { FrameStats } from "./types";
+import type { FrameStats, ZoneStat } from "./types";
 
 // What the satellite view means for today's watering. Rules, not AI: free, instant, and the same answer every time.
 //
@@ -37,6 +37,18 @@ export interface AdviceResult {
   rows: ZoneRow[];
   /** a zone that lost greenness faster than the rest of the field since an earlier pass */
   trend: { zone: number; delta: number; since: string } | null;
+}
+
+/**
+ * How far a zone sits from the field's average, as one number for colouring: −1 (clearly weaker and drier) … 0 … +1
+ * (clearly stronger and wetter). One threshold step on each signal is ±0.25, so a zone that earns "weaker" and
+ * "drier" together lands at about −0.5 and twice that is the full colour.
+ */
+export function zoneScore(zone: ZoneStat, field: ZoneStat): number {
+  if (zone.clear < MIN_CLEAR || zone.ndvi === null || field.ndvi === null) return 0;
+  const dN = (zone.ndvi - field.ndvi) / NDVI_STEP;
+  const dM = zone.ndmi !== null && field.ndmi !== null ? (zone.ndmi - field.ndmi) / NDMI_STEP : dN; // no leaf-water reading: lean on greenness
+  return Math.max(-1, Math.min(1, (dN + dM) / 4));
 }
 
 const days = (a: string, b: string) => (Date.parse(`${a}T12:00:00Z`) - Date.parse(`${b}T12:00:00Z`)) / 86_400_000;

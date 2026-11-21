@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adviseZones } from "./advice";
+import { adviseZones, zoneScore } from "./advice";
 import type { FrameStats, ZoneStat } from "./types";
 
 const z = (ndvi: number | null, ndmi: number | null, clear = 1): ZoneStat => ({ ndvi, ndmi, clear });
@@ -57,6 +57,27 @@ describe("adviseZones", () => {
     expect(adviseZones({ latest: null, previous: null, decision: "skip" }).advice).toEqual({ kind: "none", reason: "no_data" });
     expect(adviseZones({ latest: frame("d", z(null, null, 0), []), previous: null, decision: "skip" }).advice).toEqual({ kind: "none", reason: "no_data" });
     expect(adviseZones({ latest: frame("d", z(0.5, 0.1), []), previous: null, decision: "skip" }).advice).toEqual({ kind: "none", reason: "no_zones" });
+  });
+});
+
+describe("zoneScore", () => {
+  const field = z(0.6, 0.2);
+  it("is 0 for an average zone and ±0.5 for one step on both signals", () => {
+    expect(zoneScore(z(0.6, 0.2), field)).toBe(0);
+    expect(zoneScore(z(0.55, 0.16), field)).toBeCloseTo(-0.5, 6); // exactly the 'weaker' and 'drier' thresholds
+    expect(zoneScore(z(0.65, 0.24), field)).toBeCloseTo(0.5, 6);
+  });
+  it("saturates at ±1", () => {
+    expect(zoneScore(z(0.2, -0.3), field)).toBe(-1);
+    expect(zoneScore(z(0.95, 0.6), field)).toBe(1);
+  });
+  it("leans on greenness when there is no leaf-water reading", () => {
+    expect(zoneScore(z(0.55, null), z(0.6, null))).toBeCloseTo(-0.5, 6); // one greenness step below the average
+    expect(zoneScore(z(0.5, null), z(0.6, null))).toBeCloseTo(-1, 6); // two steps: the full colour
+  });
+  it("a mostly clouded zone counts as average rather than guessing", () => {
+    expect(zoneScore(z(0.2, 0.0, 0.3), field)).toBe(0);
+    expect(zoneScore(z(null, null), field)).toBe(0);
   });
 });
 

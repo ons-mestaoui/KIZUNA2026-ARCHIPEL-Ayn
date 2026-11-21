@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/lib/db";
 import { farmContext } from "@/lib/server/aiContext";
+import { fieldContext } from "@/lib/server/fieldContext";
 import { diagnose } from "@/lib/server/diagnose";
 import { loadFarmState } from "@/lib/server/farmState";
 import { DEMO_EMAIL, getFarm, getUser, unauthorized } from "@/lib/server/session";
@@ -45,13 +46,14 @@ export async function POST(request: Request) {
 
   try {
     const state = await loadFarmState(farm).catch(() => null); // weather down → still diagnose
+    const fieldLine = await fieldContext(farm, state?.week[0]?.plan.grossM3 ? "irrigate" : "skip");
     const [header, base64] = image.split(",", 2);
     const { diagnosis, model } = await diagnose({
       imageBase64: base64,
       mimeType: header.slice(5, header.indexOf(";")),
       note,
       lang,
-      context: farmContext(state, farm),
+      context: `${farmContext(state, farm)}${fieldLine ? `\n${fieldLine}` : ""}`,
       kind: demo ? "demo" : "public",
     });
     const [row] = await db

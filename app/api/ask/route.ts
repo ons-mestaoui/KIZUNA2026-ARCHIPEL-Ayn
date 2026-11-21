@@ -4,6 +4,7 @@ import { db, schema } from "@/lib/db";
 import type { Lang } from "@/lib/i18n";
 import { ARABIC, REMINDER } from "@/lib/script-guard";
 import { farmContext } from "@/lib/server/aiContext";
+import { fieldContext } from "@/lib/server/fieldContext";
 import { CHAT_MODELS, generateText } from "@/lib/server/gemini";
 import { loadFarmState } from "@/lib/server/farmState";
 import { DEMO_EMAIL, getFarm, getUser, unauthorized } from "@/lib/server/session";
@@ -74,7 +75,8 @@ export async function POST(request: Request) {
     ]);
     const history = recent.reverse().map((m) => ({ role: m.role === "assistant" ? ("model" as const) : ("user" as const), parts: [{ text: m.content }] }));
     const [header, base64] = image ? image.split(",", 2) : [null, null];
-    const facts = `\n\nFarm facts:\n${farmContext(state, farm)}`;
+    const fieldLine = await fieldContext(farm, state?.week[0]?.plan.grossM3 ? "irrigate" : "skip"); // satellite sentences, if a view is already cached
+    const facts = `\n\nFarm facts:\n${farmContext(state, farm)}${fieldLine ? `\n${fieldLine}` : ""}`;
     const contents = [
       ...history,
       {
