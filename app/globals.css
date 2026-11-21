@@ -46,19 +46,30 @@
   --color-mark-sun: var(--mark-sun);
   --color-mark-water: var(--mark-water);
   --color-mark-ghost: var(--mark-ghost);
-  --font-sans: var(--font-readex), system-ui, sans-serif;
+  --font-sans: var(--font-readex), var(--font-noto-jp), system-ui, sans-serif;
 }
 
 html,
 body {
   background: var(--limewash);
   color: var(--ink);
-  font-family: var(--font-readex), system-ui, sans-serif;
+  font-family: var(--font-readex), var(--font-noto-jp), system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+/* Japanese: break between phrases, not in the middle of a word */
+:lang(ja) {
+  word-break: auto-phrase;
+  line-break: strict;
 }
 
 /* labels floating in the 3D twin */

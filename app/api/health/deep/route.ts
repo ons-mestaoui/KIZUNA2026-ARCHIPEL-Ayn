@@ -1,0 +1,47 @@
+import { connection } from "next/server";
+import { generateWithFallback, CHAT_MODELS } from "@/lib/server/gemini";
+import { COLLECTIONS, latestDaily } from "@/lib/server/jaxa";
+import { getUser, unauthorized } from "@/lib/server/session";
+import { VOICES, synthesize } from "@/lib/server/tts";
+
+export const maxDuration = 30;
+
+type Probe = { ok: boolean; ms: number; detail?: string };
+
+async function probe(fn: () => Promise<string>): Promise<Probe> {
+  const t0 = Date.now();
+  try {
+    const detail = await fn(); // await first, THEN read the clock
+    return { ok: true, ms: Date.now() - t0, detail };
+  } catch (e) {
+    return { ok: false, ms: Date.now() - t0, detail: String(e).slice(0, 200) };
+  }
+}
+
+// Signed-in only (these calls use shared free quota): does each external dependency work from THIS host?
+// Run it on localhost and on the Vercel URL — Edge TTS in particular may be blocked from datacenter IPs.
+export async function GET(request: Request) {
+  await connection();
+  if (!(await getUser(request))) return unauthorized();
+
+  const [ai, tts, jaxa] = await Promise.all([
+    probe(async () => {
+      const { response, model } = await generateWithFallback(CHAT_MODELS, "public", {
+        contents: "Reply with the single word: ok",
+      });
+      return `${model}: ${(response.text ?? "").trim().slice(0, 40)}`;
+    }),
+    probe(async () => {
+      const mp3 = await synthesize("صباح الخير", VOICES.ar);
+      return `${VOICES.ar}: ${mp3.length} bytes`;
+    }),
+    probe(async () => {
+      // Cap Bon, Tunisia
+      const r = await latestDaily(COLLECTIONS.soilMoisture, 36.68, 10.58);
+      if (!r) throw new Error("no valid AMSR2 soil-moisture pixel near the farm in the last week");
+      return `AMSR2 soil moisture ${r.value.toFixed(1)} % on ${r.day}, pixel ${r.distKm.toFixed(0)} km away`;
+    }),
+  ]);
+
+  return Response.json({ ok: ai.ok && tts.ok && jaxa.ok, ai, tts, jaxa });
+}

@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local SQLite (dev / laptop fallback)
+/data/local.db*
+/drizzle/meta/*.snapshot.json.bak

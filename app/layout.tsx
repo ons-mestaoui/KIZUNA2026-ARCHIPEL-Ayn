@@ -1,18 +1,25 @@
 import type { Metadata, Viewport } from "next";
-import { Readex_Pro } from "next/font/google";
+import { Noto_Sans_JP, Readex_Pro } from "next/font/google";
+import { LangBoot } from "@/components/LangSwitch";
 import "./globals.css";
 
-// One family for both scripts: English UI and Tunisian Derja (Arabic script) subtitles.
+// Readex Pro covers Latin + Arabic (English UI and Derja subtitles); Noto Sans JP covers kana/kanji.
 const readex = Readex_Pro({
   variable: "--font-readex",
   subsets: ["latin", "arabic"],
   display: "swap",
 });
+const notoJp = Noto_Sans_JP({
+  variable: "--font-noto-jp",
+  weight: ["400", "500", "700"],
+  display: "swap",
+  preload: false,
+});
 
 export const metadata: Metadata = {
-  title: "Goutte d'Or AI",
+  title: "Goutte d'Or",
   description:
-    "Digital twin of a solar-pumped Tunisian farm: when to pump, when to irrigate, how much — with leaf diagnosis and alerts in Tunisian Derja.",
+    "Know when to water your farm: weather, satellites and your solar pump, with leaf diagnosis and answers in Tunisian Derja, Arabic, French, Japanese or English.",
 };
 
 export const viewport: Viewport = {
@@ -24,8 +31,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${readex.variable} h-full antialiased`}>
-      <body className="min-h-full">{children}</body>
+    <html lang="en" dir="ltr" className={`${readex.variable} ${notoJp.variable} h-full antialiased`}>
+      <body className="min-h-full">
+        <LangBoot />
+        {children}
+      </body>
     </html>
   );
 }
