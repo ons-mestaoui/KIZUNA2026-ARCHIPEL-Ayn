@@ -96,7 +96,13 @@ export function ZoneCard({ field, decision }: { field: FieldDTO; decision: "irri
                   </span>
                 </span>
                 <span className="mt-0.5 block ps-[38px] text-[13px] text-ink-soft">
-                  {r.ndvi === null ? "–" : [...notable(r), `${num(zones[r.zone]?.areaHa ?? null, 2)} ha`].join(" · ")}
+                  {r.ndvi === null ? (
+                    "–"
+                  ) : (
+                    <>
+                      {notable(r).join(" · ")} · <bdi dir="ltr">{num(zones[r.zone]?.areaHa ?? null, 2)} ha</bdi>
+                    </>
+                  )}
                 </span>
               </button>
             </li>
