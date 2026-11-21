@@ -4,6 +4,11 @@ import type { FarmStateDTO } from "@/lib/state-types";
 
 const r = (x: number, d = 0) => Math.round(x * 10 ** d) / 10 ** d;
 
+/** "Sunday 22 November 2026" — models guess weekdays from ISO dates and get them wrong, so spell them out. */
+const dated = (iso: string) =>
+  new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+const short = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+
 /**
  * A compact, factual summary of the farm and its plan for the AI. It never contains the farmer's
  * name or e-mail, and the location is rounded to ~10 km — enough for climate, not for a street address.
@@ -18,7 +23,7 @@ export function farmContext(state: FarmStateDTO | null, farm: { crop: string; ar
 
   const today = state.week[0]?.plan;
   const day = state.daily.find((d) => d.date === state.today);
-  lines.push(`Today is ${state.today} (farm local time ${Math.floor(state.localHour)}h).`);
+  lines.push(`Today is ${dated(state.today)} (farm local time ${Math.floor(state.localHour)}h).`);
   if (today) {
     lines.push(
       `Root zone: ${r(state.depletionMm)} mm of water used up out of ${r(today.tawMm)} mm available (plants get stressed beyond ${r(today.rawMm)} mm). Plant stress: ${today.stress}.`,
@@ -30,7 +35,7 @@ export function farmContext(state: FarmStateDTO | null, farm: { crop: string; ar
     .slice(1, 6)
     .map((d) => {
       const w = state.daily.find((x) => x.date === d.plan.date);
-      return `${d.plan.date}: ${d.plan.grossM3 > 0 ? `water ${r(d.plan.grossM3)} m³` : "no watering"}${w ? `, max ${r(w.tmax)} °C, rain ${r(w.rain, 1)} mm` : ""}`;
+      return `${short(d.plan.date)}: ${d.plan.grossM3 > 0 ? `water ${r(d.plan.grossM3)} m³` : "no watering"}${w ? `, max ${r(w.tmax)} °C, rain ${r(w.rain, 1)} mm` : ""}`;
     })
     .join("; ");
   if (next) lines.push(`Next days: ${next}.`);

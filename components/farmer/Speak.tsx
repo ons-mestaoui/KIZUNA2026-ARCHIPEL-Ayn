@@ -2,16 +2,16 @@
 
 import { Square, Volume2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { Lang } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/useLang";
+import type { SpeechLang } from "@/lib/speech";
 
 // A silent, empty WAV. Playing it inside the tap "unlocks" the audio element on iOS/Android, so the
 // real sentence can start a moment later, after the network round trip.
 const SILENCE = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
-const BROWSER_LOCALE: Record<Lang, string> = { en: "en-GB", ar: "ar-TN", ja: "ja-JP" };
+const BROWSER_LOCALE: Record<SpeechLang, string> = { en: "en-GB", ar: "ar-TN", ja: "ja-JP", fr: "fr-FR" };
 
-/** "Listen" button: server voice (Tunisian Arabic, Japanese, English); the browser's own voice if that fails. */
-export function Speak({ text, lang, className = "" }: { text: string; lang: Lang; className?: string }) {
+/** "Listen" button: server voice (Tunisian Arabic, Japanese, English, French); the browser's own voice if that fails. */
+export function Speak({ text, lang, className = "" }: { text: string; lang: SpeechLang; className?: string }) {
   const t = useT();
   const [state, setState] = useState<"idle" | "loading" | "playing">("idle");
   const audio = useRef<HTMLAudioElement | null>(null);

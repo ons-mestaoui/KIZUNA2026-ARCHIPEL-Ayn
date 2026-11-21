@@ -6,6 +6,7 @@ export const VOICES = {
   ar: "ar-TN-HediNeural",
   ja: "ja-JP-NanamiNeural",
   en: "en-GB-SoniaNeural",
+  fr: "fr-FR-DeniseNeural", // answers may come back in French whatever the interface language is
 } as const;
 export type VoiceLang = keyof typeof VOICES;
 

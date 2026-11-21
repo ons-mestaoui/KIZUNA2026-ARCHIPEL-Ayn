@@ -270,6 +270,28 @@ export const en = {
     },
     disclaimer: "A helper, not a lab test. For any chemical treatment, ask a licensed adviser.",
   },
+  ask: {
+    title: "Ask anything",
+    intro: "Ask in Arabic, Tunisian, French, Japanese or English. You can attach a photo.",
+    placeholder: "Write your question…",
+    send: "Send",
+    attach: "Attach a photo",
+    removePhoto: "Remove the photo",
+    thinking: "Thinking…",
+    newChat: "New conversation",
+    suggestions: [
+      "Should I water tomorrow?",
+      "Will it rain this week?",
+      "Why are my leaves turning yellow?",
+      "How can I use my pump more efficiently?",
+    ],
+    errors: {
+      quota: "You have used today's {cap} questions. Try again tomorrow.",
+      busy: "The assistant is busy. Try again in a minute.",
+      generic: "Could not answer. Try again.",
+      photo: "Could not read that photo. Choose another one.",
+    },
+  },
   shell: {
     hello: "Hello, {name}",
     tabs: {

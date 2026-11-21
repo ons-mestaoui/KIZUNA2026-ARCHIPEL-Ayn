@@ -1,5 +1,5 @@
 import "server-only";
-import { GoogleGenAI, type GenerateContentParameters, type GenerateContentResponse, type Part } from "@google/genai";
+import { GoogleGenAI, type Content, type GenerateContentParameters, type GenerateContentResponse, type Part } from "@google/genai";
 
 /**
  * Two keys protect the shared free quota: judges and farmers use GEMINI_API_KEY, the demo account
@@ -90,6 +90,50 @@ export async function generateJson<T>(opts: {
       lastError = e;
       const retry = isRetryable(e) || /JSON|schema|system|instruction|not supported|INVALID_ARGUMENT|SyntaxError|ZodError|no JSON/i.test(String(e));
       if (!retry) break; // auth / safety / bad request that another model won't fix
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+/**
+ * A plain-text answer (chat). Same fallback rules as generateJson: overload, timeouts, empty answers and
+ * models without system-prompt support (Gemma) move on to the next model.
+ */
+export async function generateText(opts: {
+  models: string[];
+  kind: KeyKind;
+  system: string;
+  contents: Content[];
+  timeoutMs?: number;
+  deadlineMs?: number;
+}): Promise<{ text: string; model: string; tried: string[] }> {
+  const tried: string[] = [];
+  const started = Date.now();
+  let lastError: unknown;
+  for (const model of opts.models) {
+    const remaining = opts.deadlineMs ? opts.deadlineMs - (Date.now() - started) : Infinity;
+    if (remaining < 1500) break;
+    tried.push(model);
+    const gemma = /^gemma/i.test(model);
+    try {
+      // Gemma has no system prompt: put the rules in front of the first user turn instead.
+      const contents = gemma
+        ? opts.contents.map((c, i) => (i === 0 ? { ...c, parts: [{ text: `${opts.system}\n\n---\n` }, ...(c.parts ?? [])] } : c))
+        : opts.contents;
+      const response = await gemini(opts.kind).models.generateContent({
+        model,
+        contents,
+        config: {
+          abortSignal: AbortSignal.timeout(Math.min(opts.timeoutMs ?? 15_000, remaining)),
+          ...(gemma ? {} : { systemInstruction: opts.system }),
+        },
+      });
+      const text = (response.text ?? "").trim();
+      if (!text) throw new Error("empty answer");
+      return { text, model, tried };
+    } catch (e) {
+      lastError = e;
+      if (!(isRetryable(e) || /empty answer|system|instruction|not supported|INVALID_ARGUMENT/i.test(String(e)))) break;
     }
   }
   throw lastError instanceof Error ? lastError : new Error(String(lastError));

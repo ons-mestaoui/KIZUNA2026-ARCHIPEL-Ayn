@@ -7,6 +7,7 @@ import { Logo } from "@/components/Logo";
 import { fmt } from "@/lib/i18n";
 import { whenLabel } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n/useLang";
+import { AskTab } from "./AskTab";
 import { FarmTab } from "./FarmTab";
 import { LeafTab } from "./LeafTab";
 import { TodayTab } from "./TodayTab";
@@ -46,7 +47,10 @@ export function FarmerApp() {
       <header className="flex items-center justify-between gap-3 px-4 pt-[max(12px,env(safe-area-inset-top))] pb-2">
         <Logo href="/app" />
         <div className="flex items-center gap-2">
-          <LangSwitch className="hidden sm:inline-flex" />
+          {/* on a phone the language lives in the Farm tab; the header has no room for it */}
+          <div className="hidden sm:block">
+            <LangSwitch />
+          </div>
           <button
             type="button"
             onClick={() => setTab("farm")}
@@ -99,7 +103,8 @@ export function FarmerApp() {
                 {tab === "week" && <WeekTab state={state} />}
                 {tab === "farm" && <FarmTab state={state} />}
                 {tab === "leaf" && <LeafTab />}
-                {(tab === "ask" || tab === "satellite") && (
+                {tab === "ask" && <AskTab />}
+                {tab === "satellite" && (
                   <section className="px-4 py-6">
                     <h2 className="text-[22px] font-semibold tracking-tight">{t.shell.tabs[tab]}</h2>
                     <p className="mt-2 text-ink-soft">{t.shell.soon}</p>

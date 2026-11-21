@@ -63,7 +63,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
 
   return (
     <main className="mx-auto flex min-h-svh w-full max-w-[460px] flex-col px-4 pt-[max(16px,env(safe-area-inset-top))] pb-8">
-      <header className="flex items-center justify-between gap-3 py-2">
+      <header className="flex flex-wrap items-center justify-between gap-3 py-2">
         <Logo />
         <LangSwitch />
       </header>

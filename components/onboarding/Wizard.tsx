@@ -84,7 +84,7 @@ export function Wizard() {
   return (
     <div className="mx-auto flex min-h-svh w-full max-w-[560px] flex-col">
       <header className="px-4 pt-[max(16px,env(safe-area-inset-top))]">
-        <div className="flex items-center justify-between gap-3 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 py-2">
           <Logo href="/app" />
           <LangSwitch />
         </div>

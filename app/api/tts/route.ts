@@ -8,7 +8,7 @@ import { VOICES, synthesize } from "@/lib/server/tts";
 
 export const maxDuration = 30;
 
-const body = z.object({ text: z.string().trim().min(1).max(600), lang: z.enum(["en", "ar", "ja"]) });
+const body = z.object({ text: z.string().trim().min(1).max(600), lang: z.enum(["en", "ar", "ja", "fr"]) });
 
 // Same sentence → same audio: remember it in memory and in the OS temp folder (the only writable
 // place on Vercel), so repeated plays and the demo's scripted lines cost nothing.
