@@ -115,7 +115,7 @@ export function FarmerApp() {
                 {tab === "farm" && <FarmTab state={state} />}
                 {tab === "leaf" && <LeafTab />}
                 {tab === "ask" && <AskTab />}
-                {tab === "satellite" && <SatelliteTab lat={state.farm.lat} lon={state.farm.lon} />}
+                {tab === "satellite" && <SatelliteTab lat={state.farm.lat} lon={state.farm.lon} polygon={state.farm.polygon} />}
               </div>
             )}
           </>

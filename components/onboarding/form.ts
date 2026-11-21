@@ -3,6 +3,8 @@ import { defaultsFor } from "@/lib/engine/farmParcel";
 import type { CropId, IrrigationMethod, LastIrrigated, SoilTexture, WaterSource } from "@/lib/engine/types";
 import type { FarmPayload } from "@/lib/farm-schema";
 import type { FarmDTO } from "@/lib/farm-types";
+import { checkOutline } from "@/lib/field/geo";
+import type { LonLat } from "@/lib/field/types";
 import type { Dict, Lang } from "@/lib/i18n";
 
 /** Wizard state. Numbers are strings while typing; empty advanced fields fall back to estimates. */
@@ -11,6 +13,8 @@ export interface Form {
   lat: number | null;
   lon: number | null;
   placeName: string | null;
+  /** The outline of the field, corners in the order they were tapped. Fewer than 3 = still being drawn. */
+  polygon: LonLat[] | null;
   crop: CropId;
   plantingDate: string;
   areaHa: string;
@@ -34,6 +38,7 @@ export const initialForm = (): Form => ({
   lat: null,
   lon: null,
   placeName: null,
+  polygon: null,
   crop: "citrus",
   plantingDate: "", // filled after mount: Date.now() must not run while the page prerenders
   areaHa: "1",
@@ -63,6 +68,7 @@ export function toPayload(f: Form, lang: Lang, defaultName: string): FarmPayload
     lat: f.lat ?? 0,
     lon: f.lon ?? 0,
     placeName: f.placeName,
+    polygon: f.polygon && f.polygon.length >= 3 ? f.polygon : null,
     crop: f.crop,
     plantingDate: CROPS[f.crop].annual ? f.plantingDate : null,
     areaHa: num(f.areaHa),
@@ -84,6 +90,7 @@ export function fromFarm(row: FarmDTO): Form {
     lat: row.lat,
     lon: row.lon,
     placeName: row.placeName,
+    polygon: (row.polygon as LonLat[] | null) ?? null,
     crop: row.crop as CropId,
     plantingDate: row.plantingDate ?? todayISO(-30),
     areaHa: String(row.areaHa),
@@ -101,7 +108,13 @@ export function fromFarm(row: FarmDTO): Form {
 /** Returns an error message for the step, or null when it can continue. */
 export function validateStep(step: number, f: Form, t: Dict): string | null {
   const e = t.onboarding.errors;
-  if (step === 0 && (f.lat === null || f.lon === null)) return e.location;
+  if (step === 0) {
+    if (f.lat === null || f.lon === null) return e.location;
+    const outline = checkOutline(f.polygon);
+    if (outline === "incomplete") return e.outlineIncomplete;
+    if (outline === "crosses") return e.outlineCrosses;
+    if (outline === "size") return e.outlineSize;
+  }
   if (step === 1) {
     if (!(num(f.areaHa) >= 0.05)) return e.area;
     if (CROPS[f.crop].annual && !/^\d{4}-\d{2}-\d{2}$/.test(f.plantingDate)) return e.planted;

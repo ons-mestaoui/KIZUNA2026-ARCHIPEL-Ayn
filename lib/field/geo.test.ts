@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bboxOf, isSimplePolygon, localFrame, pointInRing, polygonAreaHa, polygonCentroid, polygonKey, sceneBox, scaleToArea, spanM, squareFromArea } from "./geo";
+import { bboxOf, checkOutline, isSimplePolygon, localFrame, pointInRing, polygonAreaHa, polygonCentroid, polygonKey, sceneBox, scaleToArea, spanM, squareFromArea } from "./geo";
 import type { LonLat, XY } from "./types";
 
 const here: LonLat = [10.573, 36.687]; // a citrus block near Menzel Bouzelfa
@@ -70,6 +70,31 @@ describe("simple polygon check", () => {
   });
   it("rejects fewer than three corners", () => {
     expect(isSimplePolygon(poly([[0, 0], [100, 0]]))).toBe(false);
+  });
+});
+
+describe("checkOutline (the rules the editor and the server share)", () => {
+  const f = localFrame(here);
+  const poly = (pts: XY[]) => pts.map(f.toLonLat);
+  it("tells an unfinished outline from a finished one", () => {
+    expect(checkOutline(null)).toBe("empty");
+    expect(checkOutline([])).toBe("empty");
+    expect(checkOutline(poly([[0, 0]]))).toBe("incomplete");
+    expect(checkOutline(poly([[0, 0], [100, 0]]))).toBe("incomplete");
+    expect(checkOutline(squareFromArea(here, 1))).toBe("ok");
+  });
+  it("refuses a crossing outline, a speck and a whole province", () => {
+    expect(checkOutline(poly([[0, 0], [100, 100], [100, 0], [0, 100]]))).toBe("crosses");
+    expect(checkOutline(poly([[0, 0], [10, 0], [10, 10], [0, 10]]))).toBe("size"); // 100 m² = 0.01 ha
+    expect(checkOutline(poly([[0, 0], [5000, 0], [5000, 5000], [0, 5000]]))).toBe("size");
+  });
+  it("accepts the smallest and the largest allowed fields", () => {
+    expect(checkOutline(squareFromArea(here, 0.06))).toBe("ok");
+    expect(checkOutline(squareFromArea(here, 400))).toBe("ok"); // 2 km across, under the 3 km span limit
+  });
+  it("refuses more corners than a farmer could have tapped", () => {
+    const ring = Array.from({ length: 90 }, (_, i) => f.toLonLat([100 * Math.cos((i / 90) * 2 * Math.PI), 100 * Math.sin((i / 90) * 2 * Math.PI)]));
+    expect(checkOutline(ring)).toBe("crosses");
   });
 });
 

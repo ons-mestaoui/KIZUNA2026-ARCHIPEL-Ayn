@@ -4,6 +4,7 @@ import { CloudRain, Droplets, Leaf, RefreshCw, Thermometer } from "lucide-react"
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import type { LayerId } from "@/components/map/FarmMap";
+import type { LonLat } from "@/lib/field/types";
 import { dayLabel } from "@/lib/format";
 import { fmt } from "@/lib/i18n";
 import { useLocale, useT } from "@/lib/i18n/useLang";
@@ -232,7 +233,7 @@ function MetricCard({ metric }: { metric: Metric }) {
   );
 }
 
-export function SatelliteTab({ lat, lon }: { lat: number; lon: number }) {
+export function SatelliteTab({ lat, lon, polygon }: { lat: number; lon: number; polygon?: LonLat[] | null }) {
   const t = useT();
   const [layer, setLayer] = useState<LayerId>("satellite");
   return (
@@ -243,8 +244,18 @@ export function SatelliteTab({ lat, lon }: { lat: number; lon: number }) {
       <p className="mt-1 text-[14px] text-ink-soft">{t.satellite.intro}</p>
 
       <div className="relative mt-4 h-[32svh] min-h-[220px] overflow-hidden rounded-xl border border-line" dir="ltr" aria-label={t.satellite.mapTitle}>
-        <FarmMap lat={lat} lon={lon} layer={layer} fly={null} onPick={() => {}} readOnly zoom={layer === "sentinel" ? 13 : 15} />
-        <div className="absolute end-2 top-2 z-[1000] flex rounded-full bg-paper/95 p-1 text-[13px] shadow" dir="auto">
+        <FarmMap
+          lat={lat}
+          lon={lon}
+          layer={layer}
+          fly={null}
+          onPick={() => {}}
+          readOnly
+          zoom={layer === "sentinel" ? 13 : 15}
+          outline={polygon && polygon.length >= 3 ? { corners: polygon, editing: false } : undefined}
+          fitOutline={layer === "satellite"}
+        />
+        <div className="absolute right-2 top-2 z-[1000] flex rounded-full bg-paper/95 p-1 text-[13px] shadow" dir="auto">
           {(["satellite", "sentinel"] as const).map((id) => (
             <button
               key={id}

@@ -1,12 +1,14 @@
 "use client";
 
-import { Droplets, Fuel, LocateFixed, Search, Sun, SunMedium, Waves, Zap } from "lucide-react";
+import { Check, Droplets, Eraser, Fuel, LocateFixed, Pencil, Search, Square, Sun, SunMedium, Trash2, Undo2, Waves, Zap } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import type { FlyTarget, LayerId } from "@/components/map/FarmMap";
 import { CROPS, CROP_IDS } from "@/lib/engine/crops";
 import { SOIL_TEXTURES } from "@/lib/engine/soils";
 import type { IrrigationMethod, LastIrrigated, WaterSource } from "@/lib/engine/types";
+import { checkOutline, polygonAreaHa, polygonCentroid, squareFromArea } from "@/lib/field/geo";
+import type { LonLat } from "@/lib/field/types";
 import { fmt } from "@/lib/i18n";
 import { useLang, useT } from "@/lib/i18n/useLang";
 import { type Form, estimates } from "./form";
@@ -104,6 +106,13 @@ export function LocationStep({ form, set }: StepProps) {
   const [layer, setLayer] = useState<LayerId>("satellite");
   const [fly, setFly] = useState<FlyTarget | null>(null);
   const [geo, setGeo] = useState<"idle" | "busy" | "denied">("idle");
+  const [drawing, setDrawing] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [squareHa, setSquareHa] = useState(() => (Number(form.areaHa) > 0 ? form.areaHa : "1")); // the farmer's own figure, typed here
+  const o = t.onboarding.location.outline;
+  const status = checkOutline(form.polygon);
+  const finished = status === "ok";
+  const hectares = form.polygon && form.polygon.length >= 3 ? polygonAreaHa(form.polygon).toFixed(2) : "0";
 
   useEffect(() => {
     const term = q.trim();
@@ -149,6 +158,35 @@ export function LocationStep({ form, set }: StepProps) {
       () => setGeo("denied"),
       { enableHighAccuracy: true, timeout: 12_000 },
     );
+  };
+
+  /** The corners changed. A finished, valid outline also decides where the farm is and how big (the server does the same). */
+  const setCorners = (next: LonLat[]) => {
+    setNote(null);
+    if (checkOutline(next) === "ok") {
+      const c = polygonCentroid(next);
+      set({ polygon: next, lat: round(c[1]), lon: round(c[0]), areaHa: String(Math.round(polygonAreaHa(next) * 100) / 100) });
+    } else set({ polygon: next });
+  };
+
+  const startOutline = () => {
+    if (form.lat === null || form.lon === null) return setNote(o.needPin);
+    setNote(null);
+    setDrawing(true);
+    if (!form.polygon?.length) setFly({ lat: form.lat, lon: form.lon, zoom: 17, nonce: ++flights.current }); // close enough to see the field's edges
+  };
+
+  const finishOutline = () => {
+    if (status === "crosses" || status === "size") return; // the problem is on screen: fix it first
+    if (status !== "ok") set({ polygon: null }); // one or two stray corners are not an outline
+    setDrawing(false);
+  };
+
+  const makeSquare = () => {
+    const centre: LonLat | null = form.polygon && form.polygon.length >= 3 ? polygonCentroid(form.polygon) : form.lat !== null && form.lon !== null ? [form.lon, form.lat] : null;
+    if (!centre) return setNote(o.needPin);
+    const ha = Number(squareHa.replace(",", "."));
+    setCorners(squareFromArea(centre, Number.isFinite(ha) && ha > 0 ? ha : 1));
   };
 
   return (
@@ -202,8 +240,15 @@ export function LocationStep({ form, set }: StepProps) {
       )}
 
       <div className="relative h-[40svh] min-h-[260px] overflow-hidden rounded-xl border border-line" dir="ltr">
-        <FarmMap lat={form.lat} lon={form.lon} layer={layer} fly={fly} onPick={(la, lo) => pick(la, lo)} />
-        <div className="absolute end-2 top-2 z-[1000] flex rounded-full bg-paper/95 p-1 text-[13px] shadow" dir="auto">
+        <FarmMap
+          lat={form.lat}
+          lon={form.lon}
+          layer={layer}
+          fly={fly}
+          onPick={(la, lo) => pick(la, lo)}
+          outline={{ corners: form.polygon ?? [], editing: drawing, onChange: setCorners }}
+        />
+        <div className="absolute right-2 top-2 z-[1000] flex rounded-full bg-paper/95 p-1 text-[13px] shadow" dir="auto">
           {(["streets", "satellite", "sentinel"] as const).map((id) => (
             <button
               key={id}
@@ -218,10 +263,91 @@ export function LocationStep({ form, set }: StepProps) {
         </div>
       </div>
       <p className="text-[14px] text-ink-soft" dir="auto">
-        {form.lat !== null && form.lon !== null
-          ? fmt(t.onboarding.location.coordinates, { lat: form.lat.toFixed(4), lon: form.lon.toFixed(4) })
-          : t.onboarding.location.hint}
+        {finished && !drawing
+          ? fmt(o.saved, { ha: hectares })
+          : form.lat !== null && form.lon !== null
+            ? fmt(t.onboarding.location.coordinates, { lat: form.lat.toFixed(4), lon: form.lon.toFixed(4) })
+            : t.onboarding.location.hint}
       </p>
+
+      <section aria-labelledby="outline-title" className="rounded-xl border border-line bg-paper p-3.5">
+        <h3 id="outline-title" className="text-[15px] font-semibold">
+          {o.title}
+        </h3>
+        {!drawing ? (
+          <>
+            <p className="mt-1 text-[14px] leading-snug text-ink-soft">{finished ? fmt(o.saved, { ha: hectares }) : o.intro}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" onClick={startOutline} className="inline-flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border border-ink bg-paper px-4 font-medium">
+                <Pencil size={18} aria-hidden />
+                {finished ? o.edit : o.start}
+              </button>
+              {finished && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNote(null);
+                    set({ polygon: null });
+                  }}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-line bg-paper px-4 font-medium text-ink-soft"
+                >
+                  <Trash2 size={18} aria-hidden />
+                  {o.remove}
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="mt-1 text-[14px] leading-snug text-ink-soft">{o.help}</p>
+            <p className="tabular mt-2 text-[15px] font-medium" dir="auto" aria-live="polite">
+              {fmt(o.summary, { n: form.polygon?.length ?? 0, ha: hectares })}
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button type="button" disabled={!form.polygon?.length} onClick={() => setCorners((form.polygon ?? []).slice(0, -1))} className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-line bg-paper px-2 text-[14px] font-medium disabled:opacity-45">
+                <Undo2 size={16} className="rtl:-scale-x-100" aria-hidden />
+                {o.undo}
+              </button>
+              <button type="button" disabled={!form.polygon?.length} onClick={() => setCorners([])} className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-line bg-paper px-2 text-[14px] font-medium disabled:opacity-45">
+                <Eraser size={16} aria-hidden />
+                {o.clear}
+              </button>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-2 text-[14px]">
+              <label htmlFor="square-ha" className="text-ink-soft">
+                {o.squareText}
+              </label>
+              <input
+                id="square-ha"
+                inputMode="decimal"
+                value={squareHa}
+                onChange={(e) => setSquareHa(e.target.value)}
+                className="h-11 w-20 rounded-xl border border-line bg-white px-3 text-[16px] text-ink"
+                dir="ltr"
+              />
+              <span className="text-ink-soft">{o.ha}</span>
+              <button type="button" onClick={makeSquare} className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-line bg-paper px-3 font-medium">
+                <Square size={16} className="shrink-0" aria-hidden />
+                {o.squareGo}
+              </button>
+            </div>
+            <button type="button" onClick={finishOutline} className="mt-2 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-ink font-medium text-paper">
+              <Check size={18} aria-hidden />
+              {o.done}
+            </button>
+          </>
+        )}
+        {(status === "crosses" || status === "size") && drawing && (
+          <p role="alert" className="mt-2 text-[14px] text-alarm">
+            {status === "crosses" ? t.onboarding.errors.outlineCrosses : t.onboarding.errors.outlineSize}
+          </p>
+        )}
+        {note && (
+          <p role="alert" className="mt-2 text-[14px] text-alarm">
+            {note}
+          </p>
+        )}
+      </section>
 
       <label className={label}>
         {t.onboarding.location.farmName}
@@ -242,6 +368,7 @@ export function LocationStep({ form, set }: StepProps) {
 export function CropStep({ form, set }: StepProps) {
   const t = useT();
   const annual = CROPS[form.crop].annual;
+  const fromOutline = checkOutline(form.polygon) === "ok"; // a drawn outline decides the area
   return (
     <div className="grid gap-5">
       <div>
@@ -257,11 +384,12 @@ export function CropStep({ form, set }: StepProps) {
         <input
           inputMode="decimal"
           value={form.areaHa}
+          readOnly={fromOutline}
           onChange={(e) => set({ areaHa: e.target.value })}
-          className={`${field} text-start`}
+          className={`${field} text-start ${fromOutline ? "bg-limewash text-ink-soft" : ""}`}
           dir="ltr"
         />
-        <span className="text-[13px] font-normal text-ink-soft">{t.onboarding.crop.areaHint}</span>
+        <span className="text-[13px] font-normal text-ink-soft">{fromOutline ? t.onboarding.crop.areaFromOutline : t.onboarding.crop.areaHint}</span>
       </label>
       {annual && (
         <label className={label}>

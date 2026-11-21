@@ -2,8 +2,10 @@
 
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { useEffect } from "react";
-import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { useEffect, useRef } from "react";
+import { MapContainer, Marker, Polygon, Polyline, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { isSimplePolygon } from "@/lib/field/geo";
+import type { LonLat } from "@/lib/field/types";
 
 export type LayerId = "streets" | "satellite" | "sentinel";
 
@@ -35,6 +37,10 @@ const dropIcon = L.divIcon({
   iconAnchor: [17, 40],
 });
 
+// Corner handles of the outline: a 44 px touch target around a small dot (styled in globals.css). The first corner is filled.
+const cornerIcon = L.divIcon({ className: "gd-corner", html: "<span></span>", iconSize: [44, 44], iconAnchor: [22, 22] });
+const firstCornerIcon = L.divIcon({ className: "gd-corner", html: '<span class="gd-corner-first"></span>', iconSize: [44, 44], iconAnchor: [22, 22] });
+
 export interface FlyTarget {
   lat: number;
   lon: number;
@@ -42,8 +48,17 @@ export interface FlyTarget {
   nonce: number; // new object each request so the same place can be flown to twice
 }
 
-function Clicker({ onPick }: { onPick: (lat: number, lon: number) => void }) {
-  useMapEvents({ click: (e) => onPick(e.latlng.lat, e.latlng.lng) });
+/** The farmer's field outline. While `editing`, taps add corners and the corners can be dragged. */
+export interface OutlineProps {
+  corners: LonLat[];
+  editing: boolean;
+  onChange?: (corners: LonLat[]) => void;
+}
+
+const toLatLng = (c: LonLat): [number, number] => [c[1], c[0]];
+
+function Clicker({ onTap }: { onTap: (lat: number, lon: number) => void }) {
+  useMapEvents({ click: (e) => onTap(e.latlng.lat, e.latlng.lng) });
   return null;
 }
 
@@ -55,6 +70,19 @@ function Fly({ target }: { target: FlyTarget | null }) {
   return null;
 }
 
+/** Zoom to the whole outline once, when it becomes a finished shape on view (not while the farmer is drawing). */
+function FitOutline({ on, corners }: { on: boolean; corners: LonLat[] }) {
+  const map = useMap();
+  const latest = useRef(corners);
+  useEffect(() => {
+    latest.current = corners;
+  });
+  useEffect(() => {
+    if (on && latest.current.length >= 3) map.fitBounds(L.latLngBounds(latest.current.map(toLatLng)), { padding: [28, 28], maxZoom: 18, animate: false });
+  }, [on, map]);
+  return null;
+}
+
 export default function FarmMap({
   lat,
   lon,
@@ -63,6 +91,8 @@ export default function FarmMap({
   onPick,
   readOnly = false,
   zoom,
+  outline,
+  fitOutline = true,
 }: {
   lat: number | null;
   lon: number | null;
@@ -72,13 +102,31 @@ export default function FarmMap({
   /** Show the farm only: no dragging the pin, no tap-to-move, no accidental wheel zoom. */
   readOnly?: boolean;
   zoom?: number;
+  outline?: OutlineProps;
+  /** Zoom to a finished outline when it is on view (turn off for coarse layers where closer means nothing). */
+  fitOutline?: boolean;
 }) {
   const has = lat !== null && lon !== null;
   const l = MAP_LAYERS[layer];
+  const corners = outline?.corners ?? [];
+  const finished = corners.length >= 3;
+  const editing = !!outline?.editing && !readOnly;
+  // With a finished outline the field itself is the location; the pin only shows while there is no outline yet
+  const showPin = has && !editing && !finished;
+  const simple = finished ? isSimplePolygon(corners) : true;
+  const colour = simple ? "#e3a21a" : "#b4232c";
+
+  const change = (next: LonLat[]) => outline?.onChange?.(next);
+  const onTap = (la: number, lo: number) => {
+    if (editing) change([...corners, [Math.round(lo * 1e6) / 1e6, Math.round(la * 1e6) / 1e6]]);
+    else if (!readOnly && !finished) onPick(la, lo);
+  };
+
+  const centre: [number, number] = has ? [lat, lon] : corners.length ? toLatLng(corners[0]) : [34.0, 9.6];
   return (
-    <MapContainer center={has ? [lat, lon] : [34.0, 9.6]} zoom={zoom ?? (has ? 15 : 6)} scrollWheelZoom={!readOnly} className="h-full w-full">
+    <MapContainer center={centre} zoom={zoom ?? (has || corners.length ? 15 : 6)} scrollWheelZoom={!readOnly} className="h-full w-full">
       <TileLayer key={layer} url={l.url} attribution={l.attribution} maxZoom={l.maxZoom} maxNativeZoom={l.maxNativeZoom} />
-      {has && (
+      {showPin && (
         <Marker
           position={[lat, lon]}
           icon={dropIcon}
@@ -91,8 +139,26 @@ export default function FarmMap({
           }}
         />
       )}
-      {!readOnly && <Clicker onPick={onPick} />}
+      {finished && <Polygon positions={corners.map(toLatLng)} interactive={false} pathOptions={{ color: colour, weight: 3, fillColor: colour, fillOpacity: editing ? 0.2 : 0.16 }} />}
+      {corners.length === 2 && <Polyline positions={corners.map(toLatLng)} interactive={false} pathOptions={{ color: colour, weight: 3, dashArray: "6 6" }} />}
+      {editing &&
+        corners.map((c, i) => (
+          <Marker
+            key={i}
+            position={toLatLng(c)}
+            icon={i === 0 ? firstCornerIcon : cornerIcon}
+            draggable
+            eventHandlers={{
+              drag: (e) => {
+                const p = (e.target as L.Marker).getLatLng();
+                change(corners.map((q, j) => (j === i ? ([p.lng, p.lat] as LonLat) : q)));
+              },
+            }}
+          />
+        ))}
+      <Clicker onTap={onTap} />
       <Fly target={fly} />
+      <FitOutline on={fitOutline && finished && !editing} corners={corners} />
     </MapContainer>
   );
 }

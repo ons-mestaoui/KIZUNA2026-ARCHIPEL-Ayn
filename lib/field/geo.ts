@@ -142,6 +142,21 @@ export function spanM(poly: LonLat[]): number {
   return Math.max(...poly.map((p) => Math.hypot(...f.toXY(p))));
 }
 
+/** Limits on a field outline: what the satellite view can use and what one farm can plausibly be. */
+export const POLYGON_LIMITS = { minHa: 0.05, maxHa: 500, maxCorners: 80, maxSpanM: 3000 } as const;
+
+export type OutlineCheck = "empty" | "incomplete" | "crosses" | "size" | "ok";
+
+/** Is this outline ready to save? (The same rules the server applies.) */
+export function checkOutline(poly: LonLat[] | null): OutlineCheck {
+  if (!poly || poly.length === 0) return "empty";
+  if (poly.length < 3) return "incomplete";
+  if (poly.length > POLYGON_LIMITS.maxCorners || !isSimplePolygon(poly)) return "crosses";
+  const ha = polygonAreaHa(poly);
+  if (ha < POLYGON_LIMITS.minHa || ha > POLYGON_LIMITS.maxHa || spanM(poly) > POLYGON_LIMITS.maxSpanM) return "size";
+  return "ok";
+}
+
 export const MIN_SCENE_M = 500;
 export const MAX_SCENE_M = 3000;
 

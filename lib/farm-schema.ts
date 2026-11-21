@@ -2,13 +2,10 @@ import { z } from "zod";
 import { CROPS, CROP_IDS } from "@/lib/engine/crops";
 import { SOIL_TEXTURES } from "@/lib/engine/soils";
 import type { CropId, LastIrrigated, SoilTexture, WaterSource } from "@/lib/engine/types";
-import { isSimplePolygon, polygonAreaHa, spanM } from "@/lib/field/geo";
+import { POLYGON_LIMITS, checkOutline } from "@/lib/field/geo";
 
 const ymd = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const corner = z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)]);
-
-/** Limits on an outline: what the satellite view can use and what one farm can plausibly be. */
-export const POLYGON_LIMITS = { minHa: 0.05, maxHa: 500, maxCorners: 80, maxSpanM: 3000 } as const;
 const WATER_SOURCES: [WaterSource, ...WaterSource[]] = ["solar_basin", "solar_direct", "grid", "diesel", "network"];
 const LAST: [LastIrrigated, ...LastIrrigated[]] = ["today", "1-2d", "3-5d", "week+", "unknown"];
 
@@ -36,13 +33,8 @@ export const farmInputSchema = z
   })
   .superRefine((v, ctx) => {
     if (v.polygon) {
-      const bad = (message: string) => ctx.addIssue({ code: "custom", path: ["polygon"], message });
-      if (!isSimplePolygon(v.polygon)) bad("outline crosses itself");
-      else {
-        const ha = polygonAreaHa(v.polygon);
-        if (ha < POLYGON_LIMITS.minHa || ha > POLYGON_LIMITS.maxHa) bad("outline area out of range");
-        if (spanM(v.polygon) > POLYGON_LIMITS.maxSpanM) bad("outline too large");
-      }
+      const problem = checkOutline(v.polygon);
+      if (problem !== "ok") ctx.addIssue({ code: "custom", path: ["polygon"], message: `outline: ${problem}` });
     }
     if (CROPS[v.crop].annual && !v.plantingDate) ctx.addIssue({ code: "custom", path: ["plantingDate"], message: "planting date required" });
     const solar = v.waterSource === "solar_basin" || v.waterSource === "solar_direct";
