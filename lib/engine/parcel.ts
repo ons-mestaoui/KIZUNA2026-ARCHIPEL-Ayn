@@ -8,6 +8,7 @@ export const DEFAULT_PARCEL: ParcelConfig = {
   stage: "mid",
   soil: { texture: "Sandy loam", fieldCapacity: 0.2, wiltingPoint: 0.09, saturation: 0.41 },
   irrigation: { method: "drip", efficiency: 0.9, flowM3h: 25 },
+  waterSource: "solar_basin",
   basinCapacityM3: 80,
   pv: { kWp: 3, systemEfficiency: 0.8, tempCoeff: -0.004 },
   pump: { headM: 15, efficiency: 0.45, minStartW: 400 },

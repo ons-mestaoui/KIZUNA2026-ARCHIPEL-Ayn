@@ -1,12 +1,15 @@
-import { CROPS, kcFor } from "./crops";
+import { CROPS, kcOn } from "./crops";
+import { dayClimate } from "./climate";
 import { pumpFlowM3h, pvPowerW } from "./solarPump";
 import type {
   DailyPlan,
   DecisionReason,
   HourStep,
+  Limiter,
   ParcelConfig,
   PumpMetrics,
   SoilState,
+  WaterSource,
   WeatherScenario,
   Window,
 } from "./types";
@@ -17,48 +20,21 @@ const DUSK_START_H = 19;
 const DAWN_SHARE = 0.4;
 const RECOVERY_CAP = 1.2; // max daily net application as a multiple of ETc (drip can't refill the whole root zone in a day)
 const MIN_NET_MM = 0.5;
+const NON_SOLAR_HOURS = 8; // dawn + dusk windows the network can run
+const MORNING_END_H = 13; // solar_direct prefers the cooler morning block
 
-interface HourInput {
-  hour: number;
-  time: string;
-  et0: number;
-  gti: number;
-  temp: number;
-  precip: number;
+/** A "solar + basin" farm without a basin behaves as direct pumping. */
+export function effectiveSource(p: ParcelConfig): WaterSource {
+  return p.waterSource === "solar_basin" && p.basinCapacityM3 <= 0 ? "solar_direct" : p.waterSource;
 }
 
 /**
- * Open-Meteo hourly values are "preceding hour" sums/means, so the hour h:00–h+1:00
- * is described by the value stamped (h+1):00.
+ * The plan for one day. The decision (irrigate or skip, and how much the crop needs) is pure
+ * FAO-56 water balance; the schedule and the hard limits then depend on the water source:
+ *   solar_basin  → pump at solar peak into the basin, drip from it at dawn and dusk
+ *   solar_direct → irrigate while pumping, in the cooler morning block when it can
+ *   grid | diesel | network → dawn and dusk windows, limited by what the network delivers
  */
-export function hoursForDate(s: WeatherScenario, date: string): HourInput[] {
-  const t = s.hourly.time;
-  const start = t.findIndex((x) => x.startsWith(date));
-  if (start < 0) throw new Error(`Date ${date} not in scenario ${s.id}`);
-  const out: HourInput[] = [];
-  for (let h = 0; h < 24; h++) {
-    const i = Math.min(start + h + 1, t.length - 1);
-    out.push({
-      hour: h,
-      time: `${date}T${String(h).padStart(2, "0")}:00`,
-      et0: s.hourly.et0[i] ?? 0,
-      gti: s.hourly.gti[i] ?? 0,
-      temp: s.hourly.temp[i] ?? 25,
-      precip: s.hourly.precip[i] ?? 0,
-    });
-  }
-  return out;
-}
-
-/** Rain over the focus day and the next day (what the farmer can count on). */
-function rainNext48h(s: WeatherScenario, date: string): number {
-  const t = s.hourly.time;
-  const start = t.findIndex((x) => x.startsWith(date));
-  let sum = 0;
-  for (let i = start + 1; i <= Math.min(start + 48, t.length - 1); i++) sum += s.hourly.precip[i] ?? 0;
-  return sum;
-}
-
 export function computeDailyPlan(
   parcel: ParcelConfig,
   scenario: WeatherScenario,
@@ -66,17 +42,19 @@ export function computeDailyPlan(
   date: string = scenario.focusDate,
 ): DailyPlan {
   const crop = CROPS[parcel.crop];
-  const hours = hoursForDate(scenario, date);
+  const clim = dayClimate(scenario, date);
+  const hours = clim.hours;
 
   // ── Water balance ────────────────────────────────────────────────────────
-  const et0Day = sum(hours.map((h) => h.et0));
-  const kc = kcFor(parcel.crop, parcel.stage);
-  const etcDay = kc * et0Day;
-  const rainDay = rainNext48h(scenario, date);
-  const pe = effectiveRain(rainDay);
+  const kc = kcOn(date, parcel.crop, { plantingDate: parcel.plantingDate, stage: parcel.stage });
+  const etcDay = kc * clim.et0Day;
+  const pe = effectiveRain(clim.rain48h);
   const taw = totalAvailableWater(parcel.soil, crop.rootDepthM);
   const raw = crop.depletionP * taw;
-  const drStart = depletionFromTheta(soil.theta, parcel.soil, crop.rootDepthM);
+  const drStart =
+    "depletionMm" in soil
+      ? clamp(soil.depletionMm, 0, taw)
+      : depletionFromTheta(soil.theta, parcel.soil, crop.rootDepthM);
   const drNoRain = Math.min(taw, drStart + etcDay);
   const drEnd = Math.max(0, drNoRain - pe);
 
@@ -96,74 +74,70 @@ export function computeDailyPlan(
     reason = "rain_expected";
   }
 
-  // ── Solar power & pump capacity per hour ─────────────────────────────────
-  const pvW = hours.map((h) => pvPowerW(h.gti, h.temp, parcel.pv));
+  // ── Solar power & pump capacity per hour (zero for grid / diesel / network) ─
+  const source = effectiveSource(parcel);
+  const solar = source === "solar_basin" || source === "solar_direct";
+  const flow = Math.max(parcel.irrigation.flowM3h, 0.1);
+  const pvW = hours.map((h) => (solar ? pvPowerW(h.gti, h.temp, parcel.pv) : 0));
   const qRaw = pvW.map((p) => pumpFlowM3h(p, parcel.pump));
   const qOpt = qRaw.map((q) => Math.min(q, parcel.well.safeYieldM3h)); // VFD caps flow at the well's safe yield
-  const dayPumpCapacity = sum(qOpt);
+  const qDirect = qOpt.map((q) => Math.min(q, flow)); // …and, with no basin, at what the field network takes
+  const qSched = source === "solar_direct" ? qDirect : qOpt;
 
-  let grossMm = netMm / parcel.irrigation.efficiency;
-  let grossM3 = mmToM3(grossMm, parcel.areaHa);
-  const maxM3 = Math.min(parcel.basinCapacityM3, dayPumpCapacity);
-  if (grossM3 > maxM3) {
-    grossM3 = maxM3;
-    grossMm = grossM3 / (parcel.areaHa * 10);
+  // ── What the crop needs vs. what this farm can apply today ───────────────
+  const requestedM3 = decision === "irrigate" ? mmToM3(netMm / parcel.irrigation.efficiency, parcel.areaHa) : 0;
+  let capM3: number;
+  let limiter: Limiter;
+  if (source === "solar_basin") {
+    const pumpCap = sum(qOpt);
+    capM3 = Math.min(parcel.basinCapacityM3, pumpCap);
+    limiter = parcel.basinCapacityM3 <= pumpCap ? "basin" : "pump";
+  } else if (source === "solar_direct") {
+    capM3 = sum(qDirect);
+    limiter = "pump";
+  } else {
+    capM3 = flow * NON_SOLAR_HOURS;
+    limiter = "network";
   }
-  if (decision === "skip") {
-    grossM3 = 0;
-    grossMm = 0;
-  }
+  const grossM3 = Math.min(requestedM3, capM3);
+  const limitedBy = requestedM3 > capM3 + 1e-6 ? limiter : undefined;
+  const grossMm = grossM3 / (parcel.areaHa * 10);
 
-  // ── Irrigation (drip, from basin, dawn + dusk) ───────────────────────────
+  // ── Schedules ────────────────────────────────────────────────────────────
+  const irrigated = new Array<number>(24).fill(0);
+  const pumped = new Array<number>(24).fill(0);
+  const irrigationWindows: Window[] = [];
+  let pumpWindow: Window | null = null;
   const dawnM3 = grossM3 * DAWN_SHARE;
   const duskM3 = grossM3 - dawnM3;
-  const irrigated = new Array(24).fill(0);
-  const irrigationWindows: Window[] = [];
+
   if (grossM3 > 0) {
-    irrigationWindows.push(fillWindow(irrigated, DAWN_START_H, dawnM3, parcel.irrigation.flowM3h));
-    irrigationWindows.push(fillWindow(irrigated, DUSK_START_H, duskM3, parcel.irrigation.flowM3h));
+    if (source === "solar_basin") {
+      // Steady state: the basin starts the day with the dawn share pumped yesterday; today we pump
+      // today's dusk share + tomorrow's dawn share = grossM3, in one block grown from the solar peak.
+      irrigationWindows.push(fillWindow(irrigated, DAWN_START_H, dawnM3, flow));
+      irrigationWindows.push(fillWindow(irrigated, DUSK_START_H, duskM3, flow));
+      scheduleBlock(qOpt, grossM3).forEach((v, h) => (pumped[h] = v));
+      pumpWindow = blockWindow(pumped, qOpt, grossM3);
+    } else if (source === "solar_direct") {
+      const morning = hours.map((_, h) => h <= MORNING_END_H);
+      const useMorning = sum(qDirect.filter((_, h) => morning[h])) >= grossM3 - 1e-9;
+      scheduleBlock(qDirect, grossM3, useMorning ? morning : undefined).forEach((v, h) => {
+        pumped[h] = v;
+        irrigated[h] = v; // water goes straight to the field
+      });
+      pumpWindow = blockWindow(pumped, qDirect, grossM3);
+      if (pumpWindow) irrigationWindows.push({ ...pumpWindow });
+    } else {
+      irrigationWindows.push(fillWindow(irrigated, DAWN_START_H, dawnM3, flow));
+      irrigationWindows.push(fillWindow(irrigated, DUSK_START_H, duskM3, flow));
+    }
   }
 
-  // ── Pumping: one contiguous block grown from the solar peak ──────────────
-  // Steady state: the basin starts with yesterday's dawn share; today we pump today's dusk
-  // share + tomorrow's dawn share = grossM3.
-  const pumped = new Array(24).fill(0);
-  let pumpWindow: Window | null = null;
-  if (grossM3 > 0) {
-    const peak = argmax(qOpt);
-    let lo = peak;
-    let hi = peak;
-    let total = qOpt[peak];
-    while (total < grossM3) {
-      const left = lo > 0 ? qOpt[lo - 1] : 0;
-      const right = hi < 23 ? qOpt[hi + 1] : 0;
-      if (left <= 0 && right <= 0) break;
-      if (right >= left) total += qOpt[++hi];
-      else total += qOpt[--lo];
-    }
-    // fill the block, trimming the weakest edge hour so we pump exactly grossM3
-    let remaining = grossM3;
-    const order = range(lo, hi).sort((a, b) => qOpt[b] - qOpt[a]);
-    for (const h of order) {
-      const v = Math.min(qOpt[h], remaining);
-      pumped[h] = v;
-      remaining -= v;
-    }
-    const first = pumped.findIndex((v) => v > 0);
-    const last = 23 - [...pumped].reverse().findIndex((v) => v > 0);
-    const frac = (h: number) => pumped[h] / qOpt[h];
-    pumpWindow =
-      first === last
-        ? // short run: centre it on the sunniest hour
-          { start: fmt(first + 0.5 - frac(first) / 2), end: fmt(first + 0.5 + frac(first) / 2), m3: round(grossM3, 1) }
-        : // leading partial hour runs at its end, trailing partial hour at its start
-          { start: fmt(first + 1 - frac(first)), end: fmt(last + frac(last)), m3: round(grossM3, 1) };
-  }
-
-  // ── Basin simulation ─────────────────────────────────────────────────────
-  let basin = grossM3 > 0 ? dawnM3 : parcel.basinCapacityM3 * 0.25;
+  // ── Basin simulation (solar_basin only) ──────────────────────────────────
+  let basin = source === "solar_basin" ? (grossM3 > 0 ? dawnM3 : parcel.basinCapacityM3 * 0.25) : 0;
   const steps: HourStep[] = hours.map((h, i) => {
-    basin = clamp(basin + pumped[i] - irrigated[i], 0, parcel.basinCapacityM3);
+    if (source === "solar_basin") basin = clamp(basin + pumped[i] - irrigated[i], 0, parcel.basinCapacityM3);
     return {
       hour: h.hour,
       time: h.time,
@@ -179,29 +153,40 @@ export function computeDailyPlan(
     };
   });
 
-  // ── Metrics: optimized vs. "pump every sunny hour" habit ─────────────────
-  const optimized = metrics(
-    pumped.map((v, i) => (qOpt[i] > 0 ? v / qOpt[i] : 0)), // fraction of the hour running
-    pumped,
-    pvW.map((p, i) => (qRaw[i] > 0 ? (p * qOpt[i]) / qRaw[i] : 0)), // capped flow → proportionally less power
-    pvW,
-    parcel,
-  );
-  const baselineFrac = qRaw.map((q) => (q > 0 ? 1 : 0));
-  const baseline = metrics(baselineFrac, qRaw, pvW, pvW, parcel);
-  const wasteM3 = Math.max(0, baseline.pumpedM3 - grossM3);
+  // ── Metrics: plan vs. the "pump every sunny hour" habit (solar sources only) ─
+  let optimized = emptyMetrics();
+  let baseline = emptyMetrics();
+  if (solar) {
+    optimized = metrics(
+      pumped.map((v, i) => (qSched[i] > 0 ? v / qSched[i] : 0)), // fraction of the hour running
+      pumped,
+      pvW.map((p, i) => (qRaw[i] > 0 ? (p * qSched[i]) / qRaw[i] : 0)), // capped flow → proportionally less power
+      pvW,
+      parcel,
+    );
+    baseline = metrics(
+      qRaw.map((q) => (q > 0 ? 1 : 0)),
+      qRaw,
+      pvW,
+      pvW,
+      parcel,
+    );
+  }
+  const wasteM3 = Math.max(0, baseline.pumpedM3 - optimized.pumpedM3);
   const pct = (a: number, b: number) => (b > 0 ? round((100 * (b - a)) / b, 1) : 0);
 
   const stress: DailyPlan["stress"] = drStart > 0.8 * taw ? "severe" : drStart > raw ? "mild" : "none";
 
   return {
     date,
+    source,
     decision,
     reason,
-    et0Day: round(et0Day, 2),
+    et0Day: round(clim.et0Day, 2),
     kc,
     etcDay: round(etcDay, 2),
-    rainDay: round(rainDay, 1),
+    rainDay: round(clim.rainDay, 1),
+    rain48h: round(clim.rain48h, 1),
     effectiveRain: round(pe, 1),
     tawMm: round(taw, 1),
     rawMm: round(raw, 1),
@@ -210,19 +195,27 @@ export function computeDailyPlan(
     netMm: round(netMm, 2),
     grossMm: round(grossMm, 2),
     grossM3: round(grossM3, 1),
+    requestedM3: round(requestedM3, 1),
+    limitedBy,
     pumpWindow,
     irrigationWindows,
     hours: steps,
     optimized,
     baseline: { ...baseline, wasteM3: round(wasteM3, 1) },
-    savings: {
-      waterM3: round(baseline.pumpedM3 - optimized.pumpedM3, 1),
-      waterPct: pct(optimized.pumpedM3, baseline.pumpedM3),
-      pumpHoursPct: pct(optimized.pumpHours, baseline.pumpHours),
-      energyPct: pct(optimized.energyKWh, baseline.energyKWh),
-    },
+    savings: solar
+      ? {
+          waterM3: round(baseline.pumpedM3 - optimized.pumpedM3, 1),
+          waterPct: pct(optimized.pumpedM3, baseline.pumpedM3),
+          pumpHoursPct: pct(optimized.pumpHours, baseline.pumpHours),
+          energyPct: pct(optimized.energyKWh, baseline.energyKWh),
+        }
+      : { waterM3: 0, waterPct: 0, pumpHoursPct: 0, energyPct: 0 },
     stress,
   };
+}
+
+function emptyMetrics(): PumpMetrics {
+  return { pumpedM3: 0, pumpHours: 0, starts: 0, weakSunHours: 0, overYieldHours: 0, energyKWh: 0 };
 }
 
 function metrics(
@@ -249,6 +242,47 @@ function metrics(
     overYieldHours: round(over, 2),
     energyKWh: round(sum(powerW.map((p, i) => (p * frac[i]) / 1000)), 2),
   };
+}
+
+/**
+ * One contiguous block of pumping, grown outward from the strongest allowed hour until `target`
+ * m³ fit; the weakest hours at the edges are trimmed so exactly `target` is pumped.
+ */
+function scheduleBlock(q: number[], target: number, allowed?: boolean[]): number[] {
+  const out = new Array<number>(24).fill(0);
+  const eff = q.map((v, i) => (allowed && !allowed[i] ? 0 : v));
+  if (target <= 0 || sum(eff) <= 0) return out;
+  const peak = argmax(eff);
+  let lo = peak;
+  let hi = peak;
+  let total = eff[peak];
+  while (total < target) {
+    const left = lo > 0 ? eff[lo - 1] : 0;
+    const right = hi < 23 ? eff[hi + 1] : 0;
+    if (left <= 0 && right <= 0) break;
+    if (right >= left) total += eff[++hi];
+    else total += eff[--lo];
+  }
+  let remaining = target;
+  for (const h of range(lo, hi).sort((a, b) => eff[b] - eff[a])) {
+    const v = Math.min(eff[h], remaining);
+    out[h] = v;
+    remaining -= v;
+  }
+  return out;
+}
+
+/** The clock window a pumping block occupies (partial edge hours run at their sunniest end). */
+function blockWindow(pumped: number[], q: number[], m3: number): Window | null {
+  const first = pumped.findIndex((v) => v > 0);
+  if (first < 0) return null;
+  const last = 23 - [...pumped].reverse().findIndex((v) => v > 0);
+  const frac = (h: number) => Math.min(1, pumped[h] / q[h]);
+  return first === last
+    ? // short run: centre it on its hour
+      { start: fmt(first + 0.5 - frac(first) / 2), end: fmt(first + 0.5 + frac(first) / 2), m3: round(m3, 1) }
+    : // leading partial hour runs at its end, trailing partial hour at its start
+      { start: fmt(first + 1 - frac(first)), end: fmt(last + frac(last)), m3: round(m3, 1) };
 }
 
 /** Spread `m3` over hours starting at `startH` at `flow` m³/h; returns the window. */
