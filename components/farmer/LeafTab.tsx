@@ -72,7 +72,7 @@ export function LeafTab() {
       else if (res.status === 503) setError(t.leaf.errors.busy);
       else if (!res.ok) setError(t.leaf.errors.generic);
       else {
-        const item: DiagnosisItem = { id: j.id, createdAt: j.createdAt, thumb: j.thumb, result: j.result };
+        const item: DiagnosisItem = { id: j.id, createdAt: j.createdAt, thumb: j.thumb, result: j.result, cached: j.cached };
         setCurrent(item);
         setHistory((h) => [item, ...h]);
         setNote("");
@@ -220,6 +220,7 @@ export function LeafTab() {
             </button>
           </div>
           <p className="mt-3 text-[12px] text-ink-soft">{t.leaf.disclaimer}</p>
+          {current.cached && <p className="mt-1 text-[12px] font-medium text-sun-deep">{t.demo.saved}</p>}
         </article>
       )}
 

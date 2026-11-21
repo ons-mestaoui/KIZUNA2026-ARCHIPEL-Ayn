@@ -41,6 +41,8 @@ export interface AppState {
   setPlaying: (p: boolean) => void;
   setDemoMode: (d: boolean) => void;
   setTab: (t: Tab) => void;
+  /** Back to the pitch's opening state: dry soil, heatwave day, 06:00. */
+  resetDemo: () => void;
 }
 
 export const useApp = create<AppState>((set) => ({
@@ -74,6 +76,7 @@ export const useApp = create<AppState>((set) => ({
   setPlaying: (playing) => set({ playing }),
   setDemoMode: (demoMode) => set({ demoMode }),
   setTab: (tab) => set({ tab }),
+  resetDemo: () => set({ soilPct: 22, scenarioId: "summer", hour: 6, playing: false, demoMode: false }),
 }));
 
 export const useScenario = () => useApp((s) => s.scenarios[s.scenarioId]);

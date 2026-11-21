@@ -333,6 +333,34 @@ export const en = {
     credit:
       "Data: JAXA Earth API (GPM/GSMaP, GCOM-W/AMSR2, GCOM-C/SGLI). Imagery: Esri; Sentinel-2 cloudless by EOX (contains modified Copernicus Sentinel data 2024).",
   },
+  demo: {
+    badge: "Demo",
+    saved: "Saved demo answer",
+    tabs: { twin: "Twin", leaf: "Leaf check", ask: "Ask", satellite: "Satellite" },
+    scenario: {
+      label: "Weather scenario",
+      heatwave: "Heatwave · 21 Jul 2026",
+      live: "Today's forecast",
+      note: "Real weather data: the 21 July 2026 heatwave at Cap Bon (45.8 °C, ERA5 reanalysis), or the live forecast.",
+    },
+    sensor: {
+      title: "Virtual soil sensor",
+      badge: "Simulated",
+      text: "Simulates the soil probe a farm could install. Pour water and watch the twin and the plan react.",
+      moisture: "{pct}% moisture",
+      pour: "Pour water",
+      dry: "Let it dry",
+      reading: "Soil moisture reading",
+      scale: { dry: "Dry", fc: "Field capacity", sat: "Saturated" },
+    },
+    reset: "Reset demo",
+    leave: "Leave demo",
+    join: {
+      title: "Try it on your phone",
+      text: "Scan the code, create an account and get a plan for your own farm.",
+      cta: "Create a farm account",
+    },
+  },
   shell: {
     hello: "Hello, {name}",
     tabs: {

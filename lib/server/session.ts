@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 
-export const DEMO_EMAIL = "demo@goutte-dor.app";
+export { DEMO_EMAIL } from "@/lib/demo";
 
 /** The signed-in user for a route handler, or null. Always verify here, close to the data. */
 export async function getUser(request: Request) {

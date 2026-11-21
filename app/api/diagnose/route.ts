@@ -5,7 +5,8 @@ import { farmContext } from "@/lib/server/aiContext";
 import { diagnose } from "@/lib/server/diagnose";
 import { loadFarmState } from "@/lib/server/farmState";
 import { DEMO_EMAIL, getFarm, getUser, unauthorized } from "@/lib/server/session";
-import { refundQuota, takeQuota } from "@/lib/server/usage";
+import { CANNED_DIAGNOSIS, demoOffline } from "@/lib/server/demoCanned";
+import { DEMO_CAPS, refundQuota, takeQuota } from "@/lib/server/usage";
 
 export const maxDuration = 60;
 
@@ -29,9 +30,17 @@ export async function POST(request: Request) {
   const { image, thumb, note, lang } = parsed.data;
 
   const demo = user.email === DEMO_EMAIL;
-  if (!demo) {
-    const q = await takeQuota(user.id, "photos");
-    if (!q.ok) return Response.json({ error: "quota", cap: q.cap }, { status: 429 });
+  const q = await takeQuota(user.id, "photos", demo ? DEMO_CAPS.photos : undefined);
+  if (!q.ok) return Response.json({ error: "quota", cap: q.cap }, { status: 429 });
+
+  // Presenter-controlled offline mode: a saved answer, labelled as such in the interface.
+  if (demo && demoOffline()) {
+    const result = CANNED_DIAGNOSIS[lang];
+    const [row] = await db
+      .insert(schema.diagnosis)
+      .values({ farmId: farm.id, thumb: thumb ?? null, lang, resultJson: JSON.stringify(result) })
+      .returning({ id: schema.diagnosis.id, createdAt: schema.diagnosis.createdAt });
+    return Response.json({ id: row.id, createdAt: row.createdAt.toISOString(), thumb: thumb ?? null, result, model: "saved", cached: true });
   }
 
   try {
@@ -51,7 +60,7 @@ export async function POST(request: Request) {
       .returning({ id: schema.diagnosis.id, createdAt: schema.diagnosis.createdAt });
     return Response.json({ id: row.id, createdAt: row.createdAt.toISOString(), thumb: thumb ?? null, result: diagnosis, model });
   } catch (e) {
-    if (!demo) await refundQuota(user.id, "photos");
+    await refundQuota(user.id, "photos");
     const busy = /429|quota|RESOURCE_EXHAUSTED|503|UNAVAILABLE|overloaded/i.test(String(e));
     return Response.json({ error: busy ? "busy" : "ai_failed", detail: String(e).slice(0, 200) }, { status: busy ? 503 : 502 });
   }

@@ -6,7 +6,8 @@ import { farmContext } from "@/lib/server/aiContext";
 import { CHAT_MODELS, generateText } from "@/lib/server/gemini";
 import { loadFarmState } from "@/lib/server/farmState";
 import { DEMO_EMAIL, getFarm, getUser, unauthorized } from "@/lib/server/session";
-import { refundQuota, takeQuota } from "@/lib/server/usage";
+import { cannedAnswer, demoOffline } from "@/lib/server/demoCanned";
+import { DEMO_CAPS, refundQuota, takeQuota } from "@/lib/server/usage";
 
 export const maxDuration = 60;
 
@@ -49,9 +50,20 @@ export async function POST(request: Request) {
   const { message, image, lang } = parsed.data;
 
   const demo = user.email === DEMO_EMAIL;
-  if (!demo) {
-    const q = await takeQuota(user.id, "chats");
-    if (!q.ok) return Response.json({ error: "quota", cap: q.cap }, { status: 429 });
+  const q = await takeQuota(user.id, "chats", demo ? DEMO_CAPS.chats : undefined);
+  if (!q.ok) return Response.json({ error: "quota", cap: q.cap }, { status: 429 });
+
+  // Presenter-controlled offline mode: a saved answer for the demo's few scripted topics.
+  if (demo && demoOffline()) {
+    const reply = cannedAnswer(message, lang);
+    const [, assistant] = await db
+      .insert(schema.chatMessage)
+      .values([
+        { farmId: farm.id, role: "user", content: (image ? PHOTO_TAG : "") + message },
+        { farmId: farm.id, role: "assistant", content: reply },
+      ])
+      .returning({ id: schema.chatMessage.id, createdAt: schema.chatMessage.createdAt });
+    return Response.json({ id: assistant.id, createdAt: assistant.createdAt.toISOString(), reply, model: "saved", cached: true });
   }
 
   try {
@@ -86,7 +98,7 @@ export async function POST(request: Request) {
       .returning({ id: schema.chatMessage.id, createdAt: schema.chatMessage.createdAt });
     return Response.json({ id: assistant.id, createdAt: assistant.createdAt.toISOString(), reply, model });
   } catch (e) {
-    if (!demo) await refundQuota(user.id, "chats");
+    await refundQuota(user.id, "chats");
     const busy = /429|quota|RESOURCE_EXHAUSTED|503|UNAVAILABLE|overloaded|timeout|aborted/i.test(String(e));
     return Response.json({ error: busy ? "busy" : "ai_failed", detail: String(e).slice(0, 200) }, { status: busy ? 503 : 502 });
   }

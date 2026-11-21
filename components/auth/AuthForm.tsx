@@ -6,6 +6,7 @@ import { useState } from "react";
 import { LangSwitch } from "@/components/LangSwitch";
 import { Logo } from "@/components/Logo";
 import { signIn, signUp } from "@/lib/auth-client";
+import { DEMO_EMAIL } from "@/lib/demo";
 import { useT } from "@/lib/i18n/useLang";
 
 /** Only follow same-site relative paths after sign-in (no open redirects). */
@@ -49,7 +50,8 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         setBusy(false);
         return;
       }
-      router.push(safeNext(params.get("next"), isUp ? "/onboarding" : "/app"));
+      // the demo account always opens the demo, not the farmer app
+      router.push(email.toLowerCase() === DEMO_EMAIL ? "/demo" : safeNext(params.get("next"), isUp ? "/onboarding" : "/app"));
       router.refresh();
     } catch {
       setError(t.auth.errors.offline);

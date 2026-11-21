@@ -1,9 +1,12 @@
 "use client";
 
 import { CalendarDays, CalendarRange, Leaf, MessageCircle, RefreshCw, Satellite, Settings, WifiOff } from "lucide-react";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { LangSwitch } from "@/components/LangSwitch";
 import { Logo } from "@/components/Logo";
+import { useSession } from "@/lib/auth-client";
+import { DEMO_EMAIL } from "@/lib/demo";
 import { fmt } from "@/lib/i18n";
 import { whenLabel } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n/useLang";
@@ -27,8 +30,15 @@ const TABS: { id: Exclude<TabId, "farm">; icon: React.ReactNode }[] = [
 export function FarmerApp() {
   const t = useT();
   const locale = useLocale();
+  const router = useRouter();
+  const { data: session } = useSession();
   const { state, status, savedAt, refresh } = useFarmState();
   const [tab, setTab] = useState<TabId>("today");
+
+  // the demo account belongs in the demo, not in the farmer app
+  useEffect(() => {
+    if (session?.user.email === DEMO_EMAIL) router.replace("/demo");
+  }, [session, router]);
 
   const tabButton = (id: Exclude<TabId, "farm">, icon: React.ReactNode, className: string) => (
     <button

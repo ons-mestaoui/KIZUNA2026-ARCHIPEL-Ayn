@@ -335,6 +335,34 @@ export const ja: Dict = {
     credit:
       "データ：JAXA Earth API（GPM/GSMaP、GCOM-W/AMSR2、GCOM-C/SGLI）。画像：Esri、EOX の Sentinel-2 cloudless（Copernicus Sentinel データ 2024 を加工）。",
   },
+  demo: {
+    badge: "デモ",
+    saved: "保存済みのデモ回答",
+    tabs: { twin: "ツイン", leaf: "葉のチェック", ask: "質問", satellite: "衛星" },
+    scenario: {
+      label: "天気シナリオ",
+      heatwave: "猛暑 · 2026年7月21日",
+      live: "今日の予報",
+      note: "実際の気象データ：2026年7月21日のカップボンの猛暑（45.8 °C、ERA5再解析）、または最新の予報。",
+    },
+    sensor: {
+      title: "仮想土壌センサー",
+      badge: "シミュレーション",
+      text: "農園が設置できる土壌センサーを模擬します。水をかけて、ツインとプランの反応を見てください。",
+      moisture: "水分 {pct}%",
+      pour: "水をかける",
+      dry: "乾かす",
+      reading: "土壌水分の読み取り値",
+      scale: { dry: "乾燥", fc: "圃場容水量", sat: "飽和" },
+    },
+    reset: "デモをリセット",
+    leave: "デモを終了",
+    join: {
+      title: "スマートフォンで試す",
+      text: "コードを読み取り、アカウントを作成して、あなたの農園のプランを手に入れましょう。",
+      cta: "農園アカウントを作成",
+    },
+  },
   shell: {
     hello: "{name} さん、こんにちは",
     tabs: {

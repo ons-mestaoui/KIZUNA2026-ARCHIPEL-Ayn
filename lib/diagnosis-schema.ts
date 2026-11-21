@@ -23,4 +23,6 @@ export interface DiagnosisItem {
   createdAt: string; // ISO
   thumb: string | null; // small JPEG data-URL
   result: Diagnosis;
+  /** true for a saved demo answer (offline presentation mode) */
+  cached?: boolean;
 }

@@ -2,6 +2,7 @@
 
 import { CalendarDays, Leaf, MessageCircle, Satellite } from "lucide-react";
 import Link from "next/link";
+import { DemoTrigger } from "@/components/demo/DemoTrigger";
 import { LangSwitch } from "@/components/LangSwitch";
 import { Logo } from "@/components/Logo";
 import { useT } from "@/lib/i18n/useLang";
@@ -13,7 +14,9 @@ export function Landing() {
   return (
     <main className="mx-auto flex min-h-svh w-full max-w-[880px] flex-col px-4 pt-[max(16px,env(safe-area-inset-top))] pb-10">
       <header className="flex flex-wrap items-center justify-between gap-3 py-2">
-        <Logo />
+        <DemoTrigger>
+          <Logo />
+        </DemoTrigger>
         <div className="flex items-center gap-3">
           <LangSwitch />
           <Link href="/sign-in" className="hidden h-11 items-center rounded-full px-4 font-medium sm:inline-flex">
