@@ -36,7 +36,9 @@ export const auth = betterAuth({
       "/sign-in/email": { window: 10, max: 30 },
     },
   },
-  trustedOrigins: ["http://localhost:3000", ...extraOrigins],
+  // The app always trusts its own BETTER_AUTH_URL. Plain localhost is added for development only; anything else
+  // (phones on the Wi-Fi, ...) must be listed in BETTER_AUTH_TRUSTED_ORIGINS.
+  trustedOrigins: [...(process.env.NODE_ENV === "production" ? [] : ["http://localhost:3000"]), ...extraOrigins],
   plugins: [nextCookies()], // must stay last: lets server code set the session cookie
 });
 

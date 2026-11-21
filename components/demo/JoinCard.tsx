@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/useLang";
 
+const LOOPBACK = /^(localhost|127\.0\.0\.1|\[::1\])$/;
+
 /** A QR code to this app's sign-up page: judges scan it and get a plan for their own location. */
 export function JoinCard() {
   const t = useT();
@@ -11,15 +13,27 @@ export function JoinCard() {
   const [url, setUrl] = useState("");
 
   useEffect(() => {
-    // NEXT_PUBLIC_APP_URL lets a laptop demo point the QR at its LAN address instead of "localhost"
-    const target = `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/sign-up`;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- the address is only known in the browser
-    setUrl(target);
     let alive = true;
-    import("qrcode")
-      .then((q) => q.toDataURL(target, { margin: 1, width: 240, color: { dark: "#17264a", light: "#ffffff" } }))
-      .then((d) => alive && setQr(d))
-      .catch(() => {});
+    (async () => {
+      // NEXT_PUBLIC_APP_URL pins the address (e.g. the public URL); otherwise use the page's own address
+      let origin = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      // A phone cannot open "localhost". When the demo runs on the presenter's laptop, ask it for its Wi-Fi address.
+      if (!process.env.NEXT_PUBLIC_APP_URL && LOOPBACK.test(window.location.hostname)) {
+        try {
+          const j = (await (await fetch("/api/demo/lan")).json()) as { origin?: string | null };
+          if (j.origin) origin = j.origin;
+        } catch {
+          /* keep the page's own address */
+        }
+      }
+      const target = `${origin}/sign-up`;
+      const image = await import("qrcode")
+        .then((q) => q.toDataURL(target, { margin: 1, width: 240, color: { dark: "#17264a", light: "#ffffff" } }))
+        .catch(() => null);
+      if (!alive) return;
+      setUrl(target);
+      setQr(image);
+    })();
     return () => {
       alive = false;
     };

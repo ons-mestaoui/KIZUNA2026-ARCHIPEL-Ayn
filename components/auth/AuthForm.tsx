@@ -52,8 +52,14 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         return;
       }
       clearStateCache(); // a new sign-in starts clean: never show the previous person's saved plan
-      // the demo account always opens the demo, not the farmer app
-      router.push(email.toLowerCase() === DEMO_EMAIL ? "/demo" : safeNext(params.get("next"), isUp ? "/onboarding" : "/app"));
+      if (email.toLowerCase() === DEMO_EMAIL) {
+        // The demo account always opens the demo, never the farmer app, and starts from a fresh demo farm like
+        // every other door. If the door is switched off the plain sign-in above still opens the demo.
+        await fetch("/api/demo/enter", { redirect: "manual" }).catch(() => {});
+        router.push("/demo");
+      } else {
+        router.push(safeNext(params.get("next"), isUp ? "/onboarding" : "/app"));
+      }
       router.refresh();
     } catch {
       setError(t.auth.errors.offline);

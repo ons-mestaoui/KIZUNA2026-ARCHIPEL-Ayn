@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/lib/db";
 import type { Lang } from "@/lib/i18n";
+import { ARABIC, REMINDER } from "@/lib/script-guard";
 import { farmContext } from "@/lib/server/aiContext";
 import { CHAT_MODELS, generateText } from "@/lib/server/gemini";
 import { loadFarmState } from "@/lib/server/farmState";
@@ -73,20 +74,23 @@ export async function POST(request: Request) {
     ]);
     const history = recent.reverse().map((m) => ({ role: m.role === "assistant" ? ("model" as const) : ("user" as const), parts: [{ text: m.content }] }));
     const [header, base64] = image ? image.split(",", 2) : [null, null];
-    const { text, model } = await generateText({
-      models: CHAT_MODELS,
-      kind: demo ? "demo" : "public",
-      system: `${system(lang)}\n\nFarm facts:\n${farmContext(state, farm)}`,
-      contents: [
-        ...history,
-        {
-          role: "user",
-          parts: [...(image ? [{ inlineData: { mimeType: header!.slice(5, header!.indexOf(";")), data: base64! } }] : []), { text: message }],
-        },
-      ],
-      timeoutMs: 12_000,
-      deadlineMs: 30_000,
-    });
+    const facts = `\n\nFarm facts:\n${farmContext(state, farm)}`;
+    const contents = [
+      ...history,
+      {
+        role: "user" as const,
+        parts: [...(image ? [{ inlineData: { mimeType: header!.slice(5, header!.indexOf(";")), data: base64! } }] : []), { text: message }],
+      },
+    ];
+    const ask = (extra: string, deadlineMs: number) =>
+      generateText({ models: CHAT_MODELS, kind: demo ? "demo" : "public", system: `${system(lang)}${extra}${facts}`, contents, timeoutMs: 12_000, deadlineMs });
+
+    let { text, model } = await ask("", 30_000);
+    // A question written in Arabic letters must be answered in Arabic letters, not in Latin-letter Derja ("3la war9at").
+    if (ARABIC.test(message) && !ARABIC.test(text)) {
+      const again = await ask(REMINDER.ar, 15_000).catch(() => null);
+      if (again && ARABIC.test(again.text)) ({ text, model } = again);
+    }
     const reply = plain(text);
 
     const [, assistant] = await db

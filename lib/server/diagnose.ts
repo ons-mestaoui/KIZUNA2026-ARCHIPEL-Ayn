@@ -1,6 +1,7 @@
 import "server-only";
 import { CATEGORIES, type Diagnosis, diagnosisSchema } from "@/lib/diagnosis-schema";
 import type { Lang } from "@/lib/i18n";
+import { REMINDER, inScript } from "@/lib/script-guard";
 import { VISION_FAST, VISION_STRONG, type KeyKind, generateJson } from "./gemini";
 
 // JSON Schema handed to Gemini (response schema).
@@ -54,9 +55,12 @@ export interface DiagnoseInput {
  * ~12 s for it (the big free-tier models are often overloaded); on failure keep the fast answer.
  */
 export async function diagnose(input: DiagnoseInput): Promise<{ diagnosis: Diagnosis; model: string }> {
+  const plain = system(input.lang);
+  const firm = plain + REMINDER[input.lang]; // used when an answer comes back in the wrong script
+  const right = (d: Diagnosis) => inScript(input.lang, d.summary, d.voice);
   const common = {
     kind: input.kind,
-    system: system(input.lang),
+    system: plain,
     schema: jsonSchema,
     parse: (raw: unknown) => diagnosisSchema.parse(raw),
     parts: [
@@ -67,13 +71,19 @@ export async function diagnose(input: DiagnoseInput): Promise<{ diagnosis: Diagn
     ],
   };
 
-  const fast = await generateJson({ ...common, models: VISION_FAST, timeoutMs: 12_000, deadlineMs: 25_000 });
-  if (fast.data.confidence === "high" || fast.data.category === "unclear") return { diagnosis: fast.data, model: fast.model };
+  let fast = await generateJson({ ...common, models: VISION_FAST, timeoutMs: 12_000, deadlineMs: 25_000 });
+  if (!right(fast.data)) {
+    // The fast model sometimes writes Derja in Latin letters ("3la war9at") or Japanese in romaji: one firmer try.
+    const again = await generateJson({ ...common, system: firm, models: VISION_FAST, timeoutMs: 12_000, deadlineMs: 15_000 }).catch(() => null);
+    if (again && right(again.data)) fast = again;
+  }
+  if (right(fast.data) && (fast.data.confidence === "high" || fast.data.category === "unclear")) return { diagnosis: fast.data, model: fast.model };
 
   try {
-    const strong = await generateJson({ ...common, models: VISION_STRONG, timeoutMs: 12_000, deadlineMs: 12_000 });
-    return { diagnosis: strong.data, model: strong.model };
+    const strong = await generateJson({ ...common, system: firm, models: VISION_STRONG, timeoutMs: 12_000, deadlineMs: 12_000 });
+    if (right(strong.data)) return { diagnosis: strong.data, model: strong.model };
   } catch {
-    return { diagnosis: fast.data, model: fast.model };
+    /* keep the fast answer */
   }
+  return { diagnosis: fast.data, model: fast.model };
 }

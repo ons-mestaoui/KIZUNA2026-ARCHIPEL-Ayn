@@ -48,7 +48,7 @@ Open the page → *Create your farm account* → pick a place → get a plan.
 |---|---|
 | `BETTER_AUTH_SECRET` | Signs sessions. `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"` |
 | `BETTER_AUTH_URL` | The app's own address (`http://localhost:3000`, later the Vercel URL) |
-| `BETTER_AUTH_TRUSTED_ORIGINS` | Other addresses allowed to sign in, comma-separated, `*` wildcards ok — e.g. LAN phones: `http://192.168.*.*:3000,http://172.*.*.*:3000` |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | Other addresses allowed to sign in, comma-separated, `*` matches one part — e.g. phones on the Wi-Fi: `http://192.168.*.*:3000` (see *Phones on the same Wi-Fi*) |
 | `DATABASE_URL` | Default `file:data/local.db`. Production: the Turso `libsql://…` URL |
 | `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | What the Vercel ↔ Turso integration injects (used if `DATABASE_URL` is unset) |
 | `GEMINI_API_KEY` | Google AI Studio key (free tier). Leaf check and Ask need it |
@@ -58,7 +58,7 @@ Open the page → *Create your farm account* → pick a place → get a plan.
 | `DEMO_ENTRY`, `DEMO_PASSWORD` | Switch the demo on (`DEMO_ENTRY=1`) and set the demo account's password |
 | `DEMO_OFFLINE` | `1` = the demo serves saved answers (labelled) instead of calling Gemini |
 | `DEMO_PHOTOS_PER_DAY`, `DEMO_CHATS_PER_DAY` | The demo account's own, larger caps (40 / 150) |
-| `NEXT_PUBLIC_APP_URL` | Address printed in the demo's QR code (use the laptop's LAN address, not `localhost`) |
+| `NEXT_PUBLIC_APP_URL` | Pins the address in the demo's QR code. Normally not needed: the QR uses the page's own address, or the laptop's Wi-Fi address when the demo is opened on `localhost`. Read at build time |
 | `TTS_VOICE_AR`, `TTS_VOICE_JA`, `TTS_VOICE_EN`, `TTS_VOICE_FR` | Override a voice (default `ar-TN-HediNeural`; try `ar-TN-ReemNeural`) |
 
 ## The demo (separate, never the default)
@@ -87,6 +87,16 @@ The Arduino idea became this virtual sensor.
   satellite card says it could not reach the data and offers *Try again*; an outage is never remembered, so the
   cards recover by themselves when the network returns. *Listen* falls back to the device's own voice (how good
   it sounds in Arabic or Japanese depends on the phone).
+* **Rehearse a real outage** on the same laptop: start a second copy with saved answers, an invalid Gemini key
+  and every outgoing request refused (Node 24+), then run the Wi-Fi-off suite against it.
+
+  ```powershell
+  $env:BETTER_AUTH_URL = "http://localhost:3002"; $env:DEMO_OFFLINE = "1"
+  $env:GEMINI_API_KEY = "x"; $env:GEMINI_API_KEY_DEMO = "x"
+  $env:NODE_USE_ENV_PROXY = "1"; $env:HTTPS_PROXY = "http://127.0.0.1:9"; $env:NO_PROXY = "localhost,127.0.0.1"
+  npm start -- -p 3002
+  node scripts/browser/offline.mjs http://localhost:3002 browser-out leaf.jpg
+  ```
 * **Farmers in a field with no signal:** the last good plan stays on the phone and is shown under a
   "No connection. Showing the plan saved …" banner. It is removed on sign-out, on every sign-in and when the
   demo door opens, so on a shared phone nobody sees the previous farmer's plan.
@@ -106,16 +116,45 @@ node scripts/smoke-ai.mjs    <url> photo.jpg  # leaf diagnosis in three language
 
 Point them at `http://localhost:3000` or at the deployed URL.
 
-## Phones on the same Wi-Fi (laptop fallback)
+### Browser suites
+
+`npm install` also installs `puppeteer-core`, which drives your installed Chrome (set `CHROME_PATH` if it is
+not at the usual Windows location). With the app running:
 
 ```bash
-npm run build
-$env:BETTER_AUTH_URL="http://<laptop-ip>:3000"          # PowerShell
-$env:BETTER_AUTH_TRUSTED_ORIGINS="http://192.168.*.*:3000,http://172.*.*.*:3000,http://10.*.*.*:3000"
-npm start -- -H 0.0.0.0
+node scripts/browser/run-all.mjs http://localhost:3000
+node scripts/browser/run-all.mjs http://localhost:3000 --photo=leaf.jpg --lan=http://192.168.1.20:3000
 ```
 
-Phones browsing plain `http://` cannot use *Use my location* (browsers require HTTPS) — they tap the map instead.
+They sign up, onboard, read the plan and press the buttons on a phone-sized touch screen and on a desktop, in
+English, Arabic (right to left) and Japanese, and fail on console errors or sideways scrolling. `--photo` (a
+photo of a tomato leaf with Tuta absoluta damage) adds the Leaf check and Ask suites, which use the live AI
+and a little of the free quota; `--lan` adds the "phone on the Wi-Fi" check. Screenshots go to `browser-out/`.
+
+## Phones on the same Wi-Fi (laptop fallback)
+
+`npm run dev` already lets phones on a private network load the pages, and the demo's QR code points at the
+laptop's Wi-Fi address by itself, even when you open the demo on `localhost`. Two more things are needed:
+
+1. **Allow sign-in from those addresses.** In `.env.local` set `BETTER_AUTH_TRUSTED_ORIGINS` to your private
+   ranges, for example `http://192.168.*.*:3000,http://10.*.*.*:3000`. A `*` matches one number; a 172 network
+   needs one entry per range, `http://172.16.*.*:3000` … `http://172.31.*.*:3000`. Trust nothing wider.
+   Without this, signing up from a phone fails with `Invalid origin`.
+2. **Let Windows accept the connection.** The first time Node listens, Windows asks: choose *Allow access*,
+   including on a "Public" Wi-Fi. If a phone still times out, the rule is missing (as administrator:
+   `New-NetFirewallRule -DisplayName "Node" -Direction Inbound -Program "C:\Program Files\nodejs\node.exe" -Action Allow -Profile Private,Public`)
+   or the venue's Wi-Fi isolates devices from each other. In that case join the laptop to a phone's hotspot.
+
+For the pitch fallback use the production build: it is faster and has no development tools.
+
+```powershell
+npm run build
+npm start                    # then open http://<laptop-ip>:3000 on the phones
+```
+
+Phones browsing plain `http://` cannot use *Use my location* (browsers require HTTPS), so they tap the map instead.
+`node scripts/browser/lan-check.mjs http://<laptop-ip>:3000` shows the phone's view from the laptop itself
+(it cannot test the Wi-Fi hardware, so do one real phone test too).
 
 ## Deploy (do this last)
 
@@ -124,8 +163,8 @@ Phones browsing plain `http://` cannot use *Use my location* (browsers require H
 3. `npx vercel env pull .env.production.local --environment=production`, then
    `$env:ENV_FILE=".env.production.local"; npx drizzle-kit push` to create the tables on Turso.
 4. Add the other variables in Vercel: `BETTER_AUTH_SECRET` (a **new** one), `BETTER_AUTH_URL`
-   (`https://<project>.vercel.app`), `GEMINI_API_KEY`, optionally `GEMINI_API_KEY_DEMO`, `DEMO_ENTRY=1`,
-   `DEMO_PASSWORD`, `NEXT_PUBLIC_APP_URL`.
+   (`https://<project>.vercel.app`), `GEMINI_API_KEY`, optionally `GEMINI_API_KEY_DEMO`, `DEMO_ENTRY=1` and
+   `DEMO_PASSWORD`. Do not set `BETTER_AUTH_TRUSTED_ORIGINS` there.
 5. `npx vercel --prod`, then run all `smoke-*` scripts against the new URL.
 6. Check the Derja voice from the server: it uses the unofficial Edge read-aloud service, which may refuse
    datacenter addresses. If so the *Listen* button falls back to the browser's own voice (set

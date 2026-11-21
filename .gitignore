@@ -41,6 +41,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# screenshots written by scripts/browser
+/browser-out/
+
 # local SQLite (dev / laptop fallback)
 /data/local.db*
 /drizzle/meta/*.snapshot.json.bak

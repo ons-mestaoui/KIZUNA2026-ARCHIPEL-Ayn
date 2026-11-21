@@ -80,6 +80,13 @@ ok(r.status === 403, "a cross-site request to the entry is refused", `HTTP ${r.s
 r = await fetch(base + "/api/demo/enter", { redirect: "manual", headers: { "Sec-Fetch-Site": "same-origin" } });
 ok(r.status === 303, "…while a same-site one works", `HTTP ${r.status}`);
 
+// the QR code must open on a phone: on a laptop demo the page asks for the laptop's Wi-Fi address
+r = await demo("/api/demo/lan");
+const lan = await r.json().catch(() => ({}));
+const viaLoopback = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(base).hostname);
+const lanOk = viaLoopback ? lan.origin === null || /^https?:\/\/(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)\d+\.\d+:?\d*$/.test(lan.origin ?? "") : lan.origin === null;
+ok(r.status === 200 && lanOk, viaLoopback ? "on localhost the demo hands out the laptop's Wi-Fi address for the QR code" : "away from localhost no network details are handed out", `HTTP ${r.status} origin=${lan.origin}`);
+
 // a normal farmer cannot touch the demo
 const farmer = client();
 await farmer("/api/auth/sign-up/email", { method: "POST", body: JSON.stringify({ name: "F", email: `demo-iso+${Date.now()}@example.com`, password: "demo-iso-pass-123" }) });
@@ -87,6 +94,10 @@ r = await farmer("/api/demo/reset", { method: "POST" });
 ok(r.status === 403, "a normal farmer cannot reset the demo", `HTTP ${r.status}`);
 r = await client()("/api/demo/reset", { method: "POST" });
 ok(r.status === 401, "anonymous cannot reset the demo", `HTTP ${r.status}`);
+r = await farmer("/api/demo/lan");
+ok(r.status === 403, "a normal farmer gets no network details", `HTTP ${r.status}`);
+r = await client()("/api/demo/lan");
+ok(r.status === 401, "anonymous gets no network details", `HTTP ${r.status}`);
 
 console.log(failed ? `\n${failed} check(s) failed` : "\nDemo checks passed");
 process.exit(failed ? 1 : 0);
