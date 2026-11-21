@@ -49,10 +49,16 @@ export interface DiagnoseInput {
   kind: KeyKind;
 }
 
+// How long a farmer waits for the optional second opinion. Measured on the free tier: the big models often
+// answer 429 (daily quota) or take 30 s, and every "medium confidence" diagnosis (about half of the English and
+// Japanese ones) paid the full wait, 13 to 20 s in all, for an answer that rarely arrived. 6 s keeps the
+// chance of an upgrade on a good day and a diagnosis in about 8 s on a bad one.
+const SECOND_OPINION_MS = 6_000;
+
 /**
  * Stage 1: a fast model (≈2 s). If it is highly confident — or the photo is simply unusable — that is
  * the answer. Stage 2: otherwise ask a stronger model for a second opinion, but never wait more than
- * ~12 s for it (the big free-tier models are often overloaded); on failure keep the fast answer.
+ * SECOND_OPINION_MS for it; on failure keep the fast answer.
  */
 export async function diagnose(input: DiagnoseInput): Promise<{ diagnosis: Diagnosis; model: string }> {
   const plain = system(input.lang);
@@ -80,7 +86,7 @@ export async function diagnose(input: DiagnoseInput): Promise<{ diagnosis: Diagn
   if (right(fast.data) && (fast.data.confidence === "high" || fast.data.category === "unclear")) return { diagnosis: fast.data, model: fast.model };
 
   try {
-    const strong = await generateJson({ ...common, system: firm, models: VISION_STRONG, timeoutMs: 12_000, deadlineMs: 12_000 });
+    const strong = await generateJson({ ...common, system: firm, models: VISION_STRONG, timeoutMs: SECOND_OPINION_MS, deadlineMs: SECOND_OPINION_MS });
     if (right(strong.data)) return { diagnosis: strong.data, model: strong.model };
   } catch {
     /* keep the fast answer */
