@@ -69,34 +69,37 @@ export const verification = sqliteTable(
 // ─── App tables ─────────────────────────────────────────────────────────────────────────────
 const uid = () => crypto.randomUUID();
 
-/** One farm per farmer (v2). userId comes from the session — never from the client. */
-export const farm = sqliteTable("farm", {
-  id: text("id").primaryKey().$defaultFn(uid),
-  userId: text("user_id")
-    .notNull()
-    .unique()
-    .references(() => user.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  lat: real("lat").notNull(),
-  lon: real("lon").notNull(),
-  placeName: text("place_name"),
-  crop: text("crop").notNull(), // CropId
-  plantingDate: text("planting_date"), // YYYY-MM-DD (annual crops)
-  areaHa: real("area_ha").notNull(), // from the outline when there is one
-  /** The outline the farmer drew: [lon, lat] corners, not closed. Null = only a pin on the map. */
-  polygon: text("polygon", { mode: "json" }).$type<[number, number][]>(),
-  soilTexture: text("soil_texture").notNull(), // SoilTexture
-  irrigationMethod: text("irrigation_method").notNull(), // drip | sprinkler | surface
-  waterSource: text("water_source").notNull(), // solar_basin | solar_direct | grid | diesel | network
-  basinM3: real("basin_m3").notNull().default(0),
-  pvKWp: real("pv_kwp").notNull().default(0),
-  pumpHeadM: real("pump_head_m").notNull().default(15),
-  wellSafeYieldM3h: real("well_safe_yield_m3h").notNull().default(20),
-  lastIrrigated: text("last_irrigated").notNull().default("unknown"), // today | 1-2d | 3-5d | week+ | unknown
-  lang: text("lang").notNull().default("en"),
-  createdAt: ts("created_at").$defaultFn(now).notNull(),
-  updatedAt: ts("updated_at").$defaultFn(now).$onUpdate(now).notNull(),
-});
+/** One or more farms (plots) per farmer. userId comes from the session — never from the client. */
+export const farm = sqliteTable(
+  "farm",
+  {
+    id: text("id").primaryKey().$defaultFn(uid),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    lat: real("lat").notNull(),
+    lon: real("lon").notNull(),
+    placeName: text("place_name"),
+    crop: text("crop").notNull(), // CropId
+    plantingDate: text("planting_date"), // YYYY-MM-DD (annual crops)
+    areaHa: real("area_ha").notNull(), // from the outline when there is one
+    /** The outline the farmer drew: [lon, lat] corners, not closed. Null = only a pin on the map. */
+    polygon: text("polygon", { mode: "json" }).$type<[number, number][]>(),
+    soilTexture: text("soil_texture").notNull(), // SoilTexture
+    irrigationMethod: text("irrigation_method").notNull(), // drip | sprinkler | surface
+    waterSource: text("water_source").notNull(), // solar_basin | solar_direct | grid | diesel | network
+    basinM3: real("basin_m3").notNull().default(0),
+    pvKWp: real("pv_kwp").notNull().default(0),
+    pumpHeadM: real("pump_head_m").notNull().default(15),
+    wellSafeYieldM3h: real("well_safe_yield_m3h").notNull().default(20),
+    lastIrrigated: text("last_irrigated").notNull().default("unknown"), // today | 1-2d | 3-5d | week+ | unknown
+    lang: text("lang").notNull().default("en"),
+    createdAt: ts("created_at").$defaultFn(now).notNull(),
+    updatedAt: ts("updated_at").$defaultFn(now).$onUpdate(now).notNull(),
+  },
+  (t) => [index("farm_user_id_idx").on(t.userId)],
+);
 
 export const irrigationLog = sqliteTable(
   "irrigation_log",

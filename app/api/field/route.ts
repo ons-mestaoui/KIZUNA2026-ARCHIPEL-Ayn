@@ -12,7 +12,7 @@ export const maxDuration = 60;
 export async function GET(request: Request) {
   const user = await getUser(request);
   if (!user) return unauthorized();
-  const farm = await getFarm(user.id);
+  const farm = await getFarm(user.id, request);
   if (!farm) return Response.json({ error: "no_farm" }, { status: 404 });
   const outline = farm.polygon as LonLat[] | null;
   if (!outline || outline.length < 3) return Response.json({ error: "no_polygon" }, { status: 404 });

@@ -37,6 +37,7 @@ export const en = {
   },
   onboarding: {
     title: "Set up your farm",
+    titleNew: "Add a new plot",
     stepOf: "Step {n} of {total}",
     steps: ["Where is your farm?", "What do you grow?", "How do you water?", "Soil and last watering"],
     location: {
@@ -251,6 +252,14 @@ export const en = {
     soil: "Soil",
     hectares: "{n} ha",
     updated: "Weather updated {when}",
+    plots: "My plots",
+    switchPlot: "Switch plot",
+    addPlot: "Add a plot",
+    activePlot: "Active",
+    deletePlot: "Delete plot",
+    deletePlotConfirm: "Are you sure you want to delete this plot? Its water logs and data will be removed.",
+    cannotDeleteLast: "You must keep at least one plot.",
+    newPlotTitle: "Add a new plot",
   },
   offline: {
     banner: "No connection. Showing the plan saved {when}.",

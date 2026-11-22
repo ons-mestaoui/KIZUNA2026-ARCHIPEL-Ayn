@@ -39,6 +39,7 @@ export const ar: Dict = {
   },
   onboarding: {
     title: "أعدّ مزرعتك",
+    titleNew: "إضافة قطعة أرض جديدة",
     stepOf: "الخطوة {n} من {total}",
     steps: ["أين تقع مزرعتك؟", "ماذا تزرع؟", "كيف تسقي؟", "التربة وآخر سقي"],
     location: {
@@ -253,6 +254,14 @@ export const ar: Dict = {
     soil: "التربة",
     hectares: "{n} هكتار",
     updated: "حُدّث الطقس {when}",
+    plots: "قطعي الزراعية",
+    switchPlot: "تبديل القطعة",
+    addPlot: "إضافة قطعة أرض",
+    activePlot: "الحالية",
+    deletePlot: "حذف القطعة",
+    deletePlotConfirm: "هل أنت متأكد من حذف هذه القطعة؟ سيتم حذف جميع سجلات الري والبيانات التابعة لها.",
+    cannotDeleteLast: "يجب الاحتفاظ بقطعة أرض واحدة على الأقل.",
+    newPlotTitle: "إضافة قطعة جديدة",
   },
   offline: {
     banner: "لا يوجد اتصال. نعرض الخطة المحفوظة {when}.",

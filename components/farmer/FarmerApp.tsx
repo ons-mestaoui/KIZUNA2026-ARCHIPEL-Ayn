@@ -14,6 +14,7 @@ import { useLocale, useT } from "@/lib/i18n/useLang";
 import { AskTab } from "./AskTab";
 import { FarmTab } from "./FarmTab";
 import { LeafTab } from "./LeafTab";
+import { PlotSwitcher } from "./PlotSwitcher";
 import { SatelliteTab } from "./SatelliteTab";
 import { TodayTab } from "./TodayTab";
 import { useFarmState } from "./useFarmState";
@@ -36,7 +37,7 @@ export function FarmerApp() {
   const { state, status, savedAt, refresh } = useFarmState();
   const [tab, setTab] = useState<TabId>("today");
   // one satellite view of the farmer's own field, shared by the Today tab and the Satellite tab
-  const fieldData = useFieldData((state?.farm.polygon?.length ?? 0) >= 3);
+  const fieldData = useFieldData((state?.farm.polygon?.length ?? 0) >= 3, state?.farm.id);
 
   // the demo account belongs in the demo, not in the farmer app
   useEffect(() => {
@@ -59,8 +60,11 @@ export function FarmerApp() {
   return (
     <div className="mx-auto flex min-h-svh max-w-[1600px] flex-col lg:h-svh">
       <header className="flex items-center justify-between gap-3 px-4 pt-[max(12px,env(safe-area-inset-top))] pb-2">
-        <Logo href="/app" />
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Logo href="/app" />
+          {state && <PlotSwitcher current={state.farm} farms={state.farms ?? [state.farm]} onSwitch={refresh} />}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           {/* on a phone the language lives in the Farm tab; the header has no room for it */}
           <div className="hidden sm:block">
             <LangSwitch />
@@ -115,7 +119,7 @@ export function FarmerApp() {
             {tab !== "today" && (
               <div className="mx-auto max-w-[720px] pb-28 lg:h-full lg:overflow-y-auto lg:pb-8">
                 {tab === "week" && <WeekTab state={state} />}
-                {tab === "farm" && <FarmTab state={state} />}
+                {tab === "farm" && <FarmTab state={state} onSwitch={refresh} />}
                 {tab === "leaf" && <LeafTab />}
                 {tab === "ask" && <AskTab />}
                 {tab === "satellite" && <SatelliteTab lat={state.farm.lat} lon={state.farm.lon} polygon={state.farm.polygon} fieldData={fieldData} />}

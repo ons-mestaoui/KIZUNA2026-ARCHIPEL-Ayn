@@ -39,6 +39,7 @@ export const ja: Dict = {
   },
   onboarding: {
     title: "農園を設定",
+    titleNew: "新しい区画を追加",
     stepOf: "ステップ {n} / {total}",
     steps: ["農園はどこですか？", "何を育てていますか？", "どうやって水をやりますか？", "土と最後の水やり"],
     location: {
@@ -253,6 +254,14 @@ export const ja: Dict = {
     soil: "土",
     hectares: "{n} ha",
     updated: "天気の更新 {when}",
+    plots: "所有区画",
+    switchPlot: "区画を切り替え",
+    addPlot: "区画を追加",
+    activePlot: "選択中",
+    deletePlot: "この区画を削除",
+    deletePlotConfirm: "この区画を削除してもよろしいですか？関連する灌漑記録とデータはすべて削除されます。",
+    cannotDeleteLast: "最低1つの区画を保持する必要があります。",
+    newPlotTitle: "新規区画の追加",
   },
   offline: {
     banner: "接続がありません。{when} に保存したプランを表示しています。",

@@ -12,6 +12,7 @@ const LAST: [LastIrrigated, ...LastIrrigated[]] = ["today", "1-2d", "3-5d", "wee
 /** Shared by the wizard (client) and PUT /api/farm (server). userId is never part of it. */
 export const farmInputSchema = z
   .object({
+    id: z.string().trim().max(100).nullish(),
     name: z.string().trim().min(1).max(80),
     lat: z.number().min(-90).max(90),
     lon: z.number().min(-180).max(180),

@@ -1,7 +1,7 @@
 import "server-only";
+import { and, desc, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
-import { eq } from "drizzle-orm";
 
 export { DEMO_EMAIL } from "@/lib/demo";
 
@@ -11,9 +11,46 @@ export async function getUser(request: Request) {
   return s?.user ?? null;
 }
 
-/** The caller's farm (farmId comes from the session, never from the client). */
-export async function getFarm(userId: string) {
-  const rows = await db.select().from(schema.farm).where(eq(schema.farm.userId, userId)).limit(1);
+/** All farms (plots) belonging to this user, ordered by most recently updated first. */
+export async function getFarms(userId: string) {
+  return db.select().from(schema.farm).where(eq(schema.farm.userId, userId)).orderBy(desc(schema.farm.updatedAt));
+}
+
+/**
+ * The caller's active farm (from cookie, header, or query param, falling back to the most recently updated farm).
+ * Verifies that the requested farm belongs to userId.
+ */
+export async function getFarm(userId: string, request?: Request, explicitFarmId?: string | null) {
+  let targetId = explicitFarmId ?? null;
+  if (!targetId && request) {
+    targetId = request.headers.get("x-farm-id");
+    if (!targetId) {
+      const cookie = request.headers.get("cookie") ?? "";
+      const match = cookie.match(/(?:^|;\s*)gd_farm_id=([^;]+)/);
+      if (match) targetId = decodeURIComponent(match[1]);
+    }
+    if (!targetId) {
+      try {
+        targetId = new URL(request.url).searchParams.get("farmId");
+      } catch {}
+    }
+  }
+
+  if (targetId) {
+    const rows = await db
+      .select()
+      .from(schema.farm)
+      .where(and(eq(schema.farm.id, targetId), eq(schema.farm.userId, userId)))
+      .limit(1);
+    if (rows[0]) return rows[0];
+  }
+
+  const rows = await db
+    .select()
+    .from(schema.farm)
+    .where(eq(schema.farm.userId, userId))
+    .orderBy(desc(schema.farm.updatedAt))
+    .limit(1);
   return rows[0] ?? null;
 }
 

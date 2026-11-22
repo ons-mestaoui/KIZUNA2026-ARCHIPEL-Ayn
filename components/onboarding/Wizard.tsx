@@ -21,6 +21,8 @@ export function Wizard() {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<Form>(initialForm);
   const [editing, setEditing] = useState(false);
+  const [isNew, setIsNew] = useState(false);
+  const [targetId, setTargetId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,15 +33,29 @@ export function Wizard() {
     setForm((f) => (f.plantingDate ? f : { ...f, plantingDate: todayISO(-30) }));
   }, []);
 
-  // Editing an existing farm? Preload it.
+  // Check URL params after mount: are we creating a new plot (?new=1) or editing (?id=...)?
   useEffect(() => {
     let alive = true;
-    fetch("/api/farm")
+    const params = new URLSearchParams(window.location.search);
+    const createNew = params.get("new") === "1";
+    const editId = params.get("id");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- must run after mount to read window.location.search without breaking prerendering
+    setIsNew(createNew);
+    setTargetId(editId);
+
+    if (createNew) {
+      setLoading(false);
+      return;
+    }
+
+    const url = editId ? `/api/farm?id=${encodeURIComponent(editId)}` : "/api/farm";
+    fetch(url)
       .then((r) => (r.ok ? (r.json() as Promise<{ farm: FarmDTO | null }>) : { farm: null }))
       .then(({ farm }) => {
         if (alive && farm) {
           setForm(fromFarm(farm));
           setEditing(true);
+          setTargetId(farm.id);
         }
       })
       .catch(() => {})
@@ -65,10 +81,15 @@ export function Wizard() {
     }
     setSaving(true);
     try {
+      const payload = {
+        ...toPayload(form, lang, t.onboarding.location.farmNameDefault),
+        ...(editing && targetId ? { id: targetId } : {}),
+      };
+      const method = isNew ? "POST" : "PUT";
       const res = await fetch("/api/farm", {
-        method: "PUT",
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(toPayload(form, lang, t.onboarding.location.farmNameDefault)),
+        body: JSON.stringify(payload),
       });
       if (res.status === 422) {
         // the server refused a value: say which, and go to the step that holds it
@@ -108,9 +129,16 @@ export function Wizard() {
             ))}
           </div>
         </div>
-        <p className="mt-3 text-[14px] text-ink-soft" aria-live="polite">
-          {fmt(t.onboarding.stepOf, { n: step + 1, total: STEPS })}
-        </p>
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <p className="text-[14px] text-ink-soft" aria-live="polite">
+            {fmt(t.onboarding.stepOf, { n: step + 1, total: STEPS })}
+          </p>
+          {isNew && (
+            <span className="text-[12px] font-semibold text-water-deep uppercase tracking-wider">
+              {t.onboarding.titleNew}
+            </span>
+          )}
+        </div>
         <h1 className="mt-1 text-[26px] leading-tight font-semibold tracking-tight">{t.onboarding.steps[step]}</h1>
       </header>
 
@@ -146,7 +174,7 @@ export function Wizard() {
               <ArrowLeft size={18} className="rtl:rotate-180" aria-hidden />
               {t.common.back}
             </button>
-          ) : editing ? (
+          ) : editing || isNew ? (
             <Link href="/app" className="inline-flex h-12 items-center rounded-xl border border-line bg-paper px-4 font-medium">
               {t.common.cancel}
             </Link>

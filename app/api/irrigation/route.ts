@@ -13,7 +13,7 @@ const body = z.object({
 export async function POST(request: Request) {
   const user = await getUser(request);
   if (!user) return unauthorized();
-  const farm = await getFarm(user.id);
+  const farm = await getFarm(user.id, request);
   if (!farm) return Response.json({ error: "no_farm" }, { status: 404 });
 
   const parsed = body.safeParse(await request.json().catch(() => null));
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const user = await getUser(request);
   if (!user) return unauthorized();
-  const farm = await getFarm(user.id);
+  const farm = await getFarm(user.id, request);
   if (!farm) return Response.json({ error: "no_farm" }, { status: 404 });
 
   const id = Number(new URL(request.url).searchParams.get("id"));

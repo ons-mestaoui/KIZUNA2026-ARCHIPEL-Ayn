@@ -9,7 +9,7 @@ const body = z.object({ feel: z.enum(["dry", "moist", "wet"]) });
 export async function POST(request: Request) {
   const user = await getUser(request);
   if (!user) return unauthorized();
-  const farm = await getFarm(user.id);
+  const farm = await getFarm(user.id, request);
   if (!farm) return Response.json({ error: "no_farm" }, { status: 404 });
 
   const parsed = body.safeParse(await request.json().catch(() => null));

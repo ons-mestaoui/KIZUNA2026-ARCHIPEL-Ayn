@@ -10,7 +10,7 @@ const query = z.object({ metric: z.enum(["rain", "soil", "heat", "ndvi"]) });
 export async function GET(request: Request) {
   const user = await getUser(request);
   if (!user) return unauthorized();
-  const farm = await getFarm(user.id);
+  const farm = await getFarm(user.id, request);
   if (!farm) return Response.json({ error: "no_farm" }, { status: 404 });
   const parsed = query.safeParse({ metric: new URL(request.url).searchParams.get("metric") });
   if (!parsed.success) return Response.json({ error: "invalid" }, { status: 422 });

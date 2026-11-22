@@ -11,6 +11,7 @@ export interface DailySummary {
 /** Everything the farmer screens need, computed on the server by the engine. */
 export interface FarmStateDTO {
   farm: FarmDTO;
+  farms?: FarmDTO[];
   tz: string;
   today: string; // farm-local YYYY-MM-DD
   localHour: number; // farm-local hour of day, fractional

@@ -44,7 +44,7 @@ const plain = (s: string) => s.replace(/[*#`]+/g, "").replace(/\n{3,}/g, "\n\n")
 export async function POST(request: Request) {
   const user = await getUser(request);
   if (!user) return unauthorized();
-  const farm = await getFarm(user.id);
+  const farm = await getFarm(user.id, request);
   if (!farm) return Response.json({ error: "no_farm" }, { status: 404 });
 
   const parsed = body.safeParse(await request.json().catch(() => null));
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const user = await getUser(request);
   if (!user) return unauthorized();
-  const farm = await getFarm(user.id);
+  const farm = await getFarm(user.id, request);
   if (!farm) return Response.json({ items: [] });
   const rows = await db.select().from(schema.chatMessage).where(eq(schema.chatMessage.farmId, farm.id)).orderBy(desc(schema.chatMessage.id)).limit(40);
   // In the presenter's offline mode every demo answer is a saved one (the demo is reset on each entry,
@@ -135,7 +135,7 @@ export async function GET(request: Request) {
 export async function DELETE(request: Request) {
   const user = await getUser(request);
   if (!user) return unauthorized();
-  const farm = await getFarm(user.id);
+  const farm = await getFarm(user.id, request);
   if (farm) await db.delete(schema.chatMessage).where(eq(schema.chatMessage.farmId, farm.id));
   return Response.json({ ok: true });
 }

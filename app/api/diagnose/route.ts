@@ -23,7 +23,7 @@ const body = z.object({
 export async function POST(request: Request) {
   const user = await getUser(request);
   if (!user) return unauthorized();
-  const farm = await getFarm(user.id);
+  const farm = await getFarm(user.id, request);
   if (!farm) return Response.json({ error: "no_farm" }, { status: 404 });
 
   const parsed = body.safeParse(await request.json().catch(() => null));
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const user = await getUser(request);
   if (!user) return unauthorized();
-  const farm = await getFarm(user.id);
+  const farm = await getFarm(user.id, request);
   if (!farm) return Response.json({ items: [] });
   const rows = await db.select().from(schema.diagnosis).where(eq(schema.diagnosis.farmId, farm.id)).orderBy(desc(schema.diagnosis.id)).limit(12);
   return Response.json({
