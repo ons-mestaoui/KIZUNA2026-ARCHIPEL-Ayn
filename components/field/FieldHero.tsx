@@ -146,7 +146,7 @@ export default function FieldHero({
   const chip = "pointer-events-auto rounded-full text-[13px] font-medium shadow-sm";
 
   return (
-    <div className="relative h-full w-full overflow-hidden" style={{ background: "linear-gradient(#c9d9e3, #eef2ee)" }}>
+    <div className="relative h-full w-full overflow-hidden" style={{ background: "linear-gradient(#4f7fc4 0%, #8fb4e3 42%, #dbe7f5 78%, #f4f1e8 100%)" }}>
       <div className="absolute inset-0">
         <FieldScene field={field} texture={ground.texture} heights={heights} chips={chips} pins={pinAt} equipment={equipment} yardChips={yardChips} intro={!reduceMotion} label={t.field.aria} onRelief={setExag} />
       </div>

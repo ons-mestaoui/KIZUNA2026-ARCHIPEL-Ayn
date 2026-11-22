@@ -1,17 +1,19 @@
 "use client";
 /* eslint-disable react-hooks/immutability -- react-three-fiber is imperative by design: useFrame and effects mutate three.js objects (camera, textures, chip elements) */
 
-import { OrbitControls, PerformanceMonitor } from "@react-three/drei";
+import { Environment, Lightformer, OrbitControls, PerformanceMonitor } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { type MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import type { FieldDTO, LonLat } from "@/lib/field/types";
-import { COLORS } from "@/components/twin/layout";
 import { fieldSpanM, sceneProjector } from "./derive";
+import { Clouds, FloatingRocks } from "./Clouds";
+import { IslandLife } from "./IslandLife";
 import { FieldEquipment, type EquipmentInfo } from "./FieldEquipment";
+import { type IslandShape, buildIslandBody, buildIslandTop } from "./island";
 import { PAD_M, placeYard } from "./yard";
-import { type HeightAt, buildSkirt, buildTerrain, buildWall, heightSampler, relief } from "./geometry";
+import { type HeightAt, buildWall, heightSampler, relief } from "./geometry";
 
 export interface HeightGrid {
   w: number;
@@ -41,16 +43,11 @@ export interface FieldSceneProps {
 }
 
 const FOV = 32;
-const POLAR = 0.88; // radians from straight down: a bit steeper than 3/4 so the zones read
+const POLAR = 1.1; // radians from straight down: low enough to see the rock under the island, high enough for the zones to read
 const AZIMUTH = 0.3; // from the south, turned a little toward the east (north stays roughly up)
 const INTRO_S = 2.4;
 const CHIP_R = 21; // px: half of a zone chip
 const GOLD = new THREE.Color("#e3a21a");
-const STRATA = [
-  { to: 0.28, color: COLORS.soilDry },
-  { to: 0.7, color: COLORS.subsoil },
-  { to: 1, color: COLORS.aquifer },
-];
 
 const NO_PINS: LonLat[] = [];
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -60,7 +57,7 @@ function useDisposable<T extends { dispose(): void }>(value: T) {
   return value;
 }
 
-/** The slab of ground, the field's wall and the zone anchors, built once per payload. */
+/** The floating island (ground on top, rock below), the field's wall and the zone anchors, built once per payload. */
 function World({ field, texture, heights, chips, pins = NO_PINS, equipment, yardChips, intro, onRelief }: Omit<FieldSceneProps, "label">) {
   const { gl, camera, size } = useThree();
   const sideM = field.sideM;
@@ -70,27 +67,12 @@ function World({ field, texture, heights, chips, pins = NO_PINS, equipment, yard
   const ring = useMemo(() => field.polygon.map(toXZ), [field, toXZ]);
   const span = useMemo(() => fieldSpanM(field), [field]);
   const wallH = clamp(span * 0.12, 8, 40);
-  const depth = sideM * 0.1;
 
   useEffect(() => onRelief?.(rel?.exaggeration ?? 1), [rel, onRelief]);
 
-  const terrain = useDisposable(useMemo(() => buildTerrain(sideM, 128, heightAt), [sideM, heightAt]));
   const wall = useDisposable(useMemo(() => buildWall(ring, heightAt, wallH, [GOLD.r, GOLD.g, GOLD.b]), [ring, heightAt, wallH]));
-  const skirt = useDisposable(useMemo(() => buildSkirt(sideM, 64, heightAt, depth, STRATA), [sideM, heightAt, depth]));
-
-  // a soft contact shadow under the slab so it sits on the page instead of floating
-  const shadow = useMemo(() => {
-    const c = document.createElement("canvas");
-    c.width = c.height = 128;
-    const g = c.getContext("2d")!;
-    const grad = g.createRadialGradient(64, 64, 18, 64, 64, 64);
-    grad.addColorStop(0, "rgba(23,38,74,0.34)");
-    grad.addColorStop(1, "rgba(23,38,74,0)");
-    g.fillStyle = grad;
-    g.fillRect(0, 0, 128, 128);
-    return new THREE.CanvasTexture(c);
-  }, []);
-  useDisposable(shadow);
+  // soft shadows from the panels onto the pad, on desktops (a phone's GPU has better things to do)
+  const [shadows] = useState(() => window.matchMedia("(pointer: fine)").matches);
 
   useEffect(() => {
     texture.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
@@ -110,19 +92,29 @@ function World({ field, texture, heights, chips, pins = NO_PINS, equipment, yard
       zs.push(spot.at[1] - PAD_M.d / 2, spot.at[1] + PAD_M.d / 2);
     }
     const [x0, x1, z0, z1] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
-    return { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, span: Math.max(x1 - x0, z1 - z0) };
+    return { x0, x1, z0, z1, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, span: Math.max(x1 - x0, z1 - z0) };
   }, [ring, spot]);
+
+  // the island wraps everything the first view has to show, with a margin, and never runs off the ground texture
+  const shape: IslandShape = useMemo(() => {
+    const reach = Math.hypot(Math.max(Math.abs(bounds.x0 - bounds.cx), Math.abs(bounds.x1 - bounds.cx)), Math.max(Math.abs(bounds.z0 - bounds.cz), Math.abs(bounds.z1 - bounds.cz)));
+    const room = sideM / 2 - Math.max(Math.abs(bounds.cx), Math.abs(bounds.cz)) - 4;
+    const R = clamp(reach * 1.14 + 14, 60, Math.max(60, room));
+    return { cx: bounds.cx, cz: bounds.cz, R, depth: R * 1.3 };
+  }, [bounds, sideM]);
+  const top = useDisposable(useMemo(() => buildIslandTop(shape, sideM, heightAt), [shape, sideM, heightAt]));
+  const body = useDisposable(useMemo(() => buildIslandBody(shape, heightAt), [shape, heightAt]));
 
   // where the camera looks: the middle of what there is to see, on the ground
   const target = useMemo(() => new THREE.Vector3(bounds.cx, heightAt(bounds.cx, bounds.cz), bounds.cz), [bounds, heightAt]);
 
-  // how far back to stand so the field and a good slice of its surroundings fill the screen, on any shape of screen
+  // how far back to stand so the whole island, with a little sky around it, fits the narrower side of the screen
   const fit = useMemo(() => {
-    const visible = spot ? clamp(bounds.span * 1.3, 190, sideM * 0.92) : Math.max(span * 1.6, clamp(span * 2.5, 200, sideM * 0.92)); // metres across the view at the target: the field fills about 40 % of it
+    const visible = Math.max(190, shape.R * 2.16); // metres across the view at the target
     const vHalf = THREE.MathUtils.degToRad(FOV / 2);
     const hHalf = Math.atan(Math.tan(vHalf) * (size.width / Math.max(1, size.height)));
     return visible / 2 / Math.tan(Math.min(vHalf, hHalf));
-  }, [sideM, span, spot, bounds, size.width, size.height]);
+  }, [shape, size.width, size.height]);
 
   // anchors for the chips: the zones, then any pins
   const anchors = useMemo(
@@ -134,6 +126,9 @@ function World({ field, texture, heights, chips, pins = NO_PINS, equipment, yard
     [field, pins, toXZ, heightAt],
   );
 
+  const sun = useMemo(() => ({ target: new THREE.Object3D() }), []);
+  const sunRef = useRef<THREE.DirectionalLight>(null);
+  const pad = useMemo(() => ({ x: spot ? spot.at[0] : bounds.cx, y: heightAt(spot ? spot.at[0] : bounds.cx, spot ? spot.at[1] : bounds.cz), z: spot ? spot.at[1] : bounds.cz }), [spot, bounds, heightAt]);
   const controls = useRef<OrbitControlsImpl>(null);
   const [ready, setReady] = useState(!intro);
   const started = useRef<number | null>(null);
@@ -203,36 +198,60 @@ function World({ field, texture, heights, chips, pins = NO_PINS, equipment, yard
         }
       }
     }
+    // looking from the side the chips would float in the air, so they fade as the camera comes down toward the horizon
+    const polar = controls.current?.getPolarAngle() ?? POLAR;
+    const side = clamp((1.38 - polar) / 0.22, 0, 1);
     spots.forEach((p, i) => {
       const el = chips.current[i];
       if (!el) return;
       el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
-      el.style.opacity = p.on ? "1" : "0";
+      el.style.opacity = p.on ? String(side) : "0";
     });
   });
 
   return (
     <>
-      {spot && equipment && (
-        <>
-          <hemisphereLight args={["#ffffff", "#b9a98a", 1.5]} />
-          <directionalLight position={[-120, 220, 160]} intensity={2.4} />
-          <FieldEquipment equipment={equipment} spot={spot} ring={ring} heightAt={heightAt} chips={yardChips ?? emptyChips} />
-        </>
-      )}
-      <mesh geometry={terrain}>
+      {/* light with no network: a few soft panels that the glossy parts (panels, water, pipes) reflect */}
+      <Environment resolution={64} frames={1} environmentIntensity={0.75}>
+        <Lightformer form="rect" intensity={2.4} position={[0, 40, 0]} rotation-x={Math.PI / 2} scale={[70, 70, 1]} color="#ffffff" />
+        <Lightformer form="rect" intensity={2.8} position={[-34, 12, 34]} scale={[34, 16, 1]} color="#ffe2b0" />
+        <Lightformer form="rect" intensity={1.3} position={[34, 8, -24]} rotation-y={Math.PI} scale={[34, 16, 1]} color="#a8c4ff" />
+      </Environment>
+      <hemisphereLight args={["#e8f1ff", "#b3a283", 1.1]} />
+      <primitive object={sun.target} position={[pad.x, pad.y, pad.z]} />
+      <directionalLight
+        ref={sunRef}
+        target={sun.target}
+        position={[pad.x - 120, pad.y + 220, pad.z + 160]}
+        intensity={2.2}
+        color="#fff1d6"
+        castShadow={shadows && !!spot}
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-PAD_M.w * 0.62}
+        shadow-camera-right={PAD_M.w * 0.62}
+        shadow-camera-top={PAD_M.w * 0.62}
+        shadow-camera-bottom={-PAD_M.w * 0.62}
+        shadow-camera-near={20}
+        shadow-camera-far={600}
+        shadow-bias={-0.0005}
+        shadow-normalBias={0.4}
+      />
+      <directionalLight position={[160, 90, -200]} intensity={0.8} color="#9db8ff" />
+      {/* a warm fill from the front and below, so the rock face and the underside are lit, not black */}
+      <directionalLight position={[-60, -90, 260]} intensity={1.15} color="#ffd9b0" />
+      {spot && equipment && <FieldEquipment equipment={equipment} spot={spot} ring={ring} heightAt={heightAt} chips={yardChips ?? emptyChips} shadows={shadows} />}
+      <mesh geometry={top}>
         <meshBasicMaterial map={texture} toneMapped={false} />
       </mesh>
-      <mesh geometry={skirt}>
-        <meshBasicMaterial vertexColors side={THREE.DoubleSide} toneMapped={false} />
+      <mesh geometry={body}>
+        <meshStandardMaterial vertexColors flatShading roughness={0.96} metalness={0} />
       </mesh>
       <mesh geometry={wall} renderOrder={2}>
         <meshBasicMaterial vertexColors transparent side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
       </mesh>
-      <mesh rotation-x={-Math.PI / 2} position={[0, -depth - 0.4, 0]}>
-        <circleGeometry args={[sideM * 0.8, 64]} />
-        <meshBasicMaterial map={shadow} transparent depthWrite={false} toneMapped={false} />
-      </mesh>
+      <IslandLife shape={shape} heightAt={heightAt} vines={shadows ? 34 : 22} trees={shadows ? 18 : 12} />
+      <FloatingRocks shape={shape} count={shadows ? 7 : 5} />
+      <Clouds shape={shape} count={shadows ? 34 : 22} />
       <OrbitControls
         ref={controls}
         enabled={ready}
@@ -242,7 +261,7 @@ function World({ field, texture, heights, chips, pins = NO_PINS, equipment, yard
         dampingFactor={0.09}
         rotateSpeed={0.7}
         minPolarAngle={0.2}
-        maxPolarAngle={1.25}
+        maxPolarAngle={1.52}
         minDistance={fit * 0.35}
         maxDistance={fit * 2.2}
       />
@@ -256,6 +275,7 @@ export default function FieldScene(props: FieldSceneProps) {
     <Canvas
       flat
       dpr={[1, dpr]}
+      shadows
       camera={{ fov: FOV, near: 1, far: 12000, position: [0, 400, 600] }}
       gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
       onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}

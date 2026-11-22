@@ -12,7 +12,7 @@ export const PAD = { w: 46, d: 34 };
  * Metres per layout unit. A real 3 kWp system is a fraction of this size; it is drawn larger so that it reads on a phone,
  * and labelled as illustrative.
  */
-export const YARD_SCALE = 1.4;
+export const YARD_SCALE = 1.9;
 /** The pad's real size in the scene (metres). */
 export const PAD_M = { w: PAD.w * YARD_SCALE, d: PAD.d * YARD_SCALE };
 

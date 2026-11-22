@@ -87,7 +87,7 @@ export function FarmTab({ state, onSwitch }: { state: FarmStateDTO; onSwitch?: (
         <div className="mt-4">
           <Link
             href={`/onboarding?id=${farm.id}`}
-            className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-ink px-5 font-medium text-paper"
+            className="inline-flex h-11 w-full items-center justify-center ay-btn rounded-xl bg-ink px-5 font-medium text-paper"
           >
             {t.farm.edit}
           </Link>

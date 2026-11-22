@@ -1,5 +1,6 @@
-import { Landing } from "@/components/Landing";
+import { LandingPage } from "@/components/landing/LandingPage";
 
-export default function Page() {
-  return <Landing />;
+// The public front door. Static: nothing here reads the session or the URL (the hidden doors are client-side).
+export default function Home() {
+  return <LandingPage />;
 }

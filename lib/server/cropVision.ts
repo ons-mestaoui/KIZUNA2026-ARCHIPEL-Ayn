@@ -533,7 +533,7 @@ export const CROP_DISEASES: Record<string, DiseaseInfo> = {
     actions: {
       en: [
         "No chemical or organic spray required.",
-        "Continue rational irrigation according to your Goutte d'Or water plan.",
+        "Continue rational irrigation according to your Ayn water plan.",
         "Scout foliage once or twice weekly for early detection.",
       ],
       ar: [
@@ -543,12 +543,12 @@ export const CROP_DISEASES: Record<string, DiseaseInfo> = {
       ],
       ja: [
         "農薬や防除剤の散布は一切不要です。",
-        "現在の「Goutte d'Or」節水水やりプランをそのまま継続してください。",
+        "現在の「Ayn」節水水やりプランをそのまま継続してください。",
         "週1〜2回の定期見回りで早期発見に努めてください。",
       ],
     },
     waterAdvice: {
-      en: "The plant is in prime condition. Follow today's Goutte d'Or recommendation.",
+      en: "The plant is in prime condition. Follow today's Ayn recommendation.",
       ar: "الزرع في أحسن حالة، تبع برنامج السقي متاع اليوم.",
       ja: "作物は極めて良好な状態です。本日の水やりプランに従ってください。",
     },

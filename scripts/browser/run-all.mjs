@@ -25,6 +25,12 @@ const out = "browser-out";
 mkdirSync(out, { recursive: true });
 
 const suites = [
+  ["landing (en, phone)", "landing.mjs", [base, out, "en", "phone"]],
+  ["landing (ar, phone)", "landing.mjs", [base, out, "ar", "phone"]],
+  ["landing (ja, phone)", "landing.mjs", [base, out, "ja", "phone"]],
+  ["landing (en, desktop)", "landing.mjs", [base, out, "en", "desktop"]],
+  ["landing (ar, desktop)", "landing.mjs", [base, out, "ar", "desktop"]],
+  ["landing (ja, desktop)", "landing.mjs", [base, out, "ja", "desktop"]],
   ["onboarding (en)", "flow.mjs", [base, out, "en"]],
   ["onboarding (ar)", "flow.mjs", [base, out, "ar"]],
   ["onboarding (ja)", "flow.mjs", [base, out, "ja"]],

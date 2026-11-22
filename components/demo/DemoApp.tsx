@@ -11,6 +11,7 @@ import { type HeroView, ViewSwitch } from "@/components/field/ViewSwitch";
 import { ZoneCard } from "@/components/field/ZoneCard";
 import { LangSwitch } from "@/components/LangSwitch";
 import { Logo } from "@/components/Logo";
+import { TabMark, TabSwap } from "@/components/motion/Motion";
 import { EnergyPanel } from "@/components/panels/EnergyPanel";
 import { AskTab } from "@/components/farmer/AskTab";
 import { DecisionCard, SavingsNote } from "@/components/farmer/Decision";
@@ -185,20 +186,22 @@ export default function DemoApp() {
     if (!isPending && data && data.user.email !== DEMO_EMAIL) router.replace("/app");
   }, [isPending, data, router]);
 
-  async function reset() {
-    await fetch("/api/demo/reset", { method: "POST" }).catch(() => {});
+  // the screen resets at once; the server is told in the background (on a slow network the button must not feel dead)
+  function reset() {
     resetDemo();
     setEpoch((n) => n + 1);
+    void fetch("/api/demo/reset", { method: "POST" }).catch(() => {});
   }
 
-  const tabButton = (id: TabId, icon: React.ReactNode, className: string) => (
+  const tabButton = (id: TabId, icon: React.ReactNode, className: string, bar: "desktop" | "phone") => (
     <button
       key={id}
       type="button"
       aria-current={tab === id ? "page" : undefined}
       onClick={() => setTab(id)}
-      className={`${className} ${tab === id ? "font-semibold text-ink" : "text-ink-soft"}`}
+      className={`relative ${className} ${tab === id ? "font-semibold text-ink" : "text-ink-soft"}`}
     >
+      {tab === id && <TabMark layoutId={`demo-${bar}`} edge={bar === "desktop" ? "bottom" : "top"} />}
       {icon}
       {t.demo.tabs[id]}
     </button>
@@ -238,12 +241,13 @@ export default function DemoApp() {
       <nav aria-label={t.demo.badge} className="hidden border-y border-line bg-paper lg:block">
         <ul className="mx-auto flex max-w-[1600px] gap-2 px-4">
           {TABS.map((x) => (
-            <li key={x.id}>{tabButton(x.id, x.icon, "flex h-11 items-center gap-2 px-3 text-[14px]")}</li>
+            <li key={x.id}>{tabButton(x.id, x.icon, "flex h-11 items-center gap-2 px-3 text-[14px]", "desktop")}</li>
           ))}
         </ul>
       </nav>
 
       <main className="flex-1 lg:min-h-0 lg:overflow-hidden" key={epoch}>
+        <TabSwap id={tab} className="lg:h-full">
         {tab === "twin" && <TwinTab fieldData={fieldData} />}
         {tab !== "twin" && (
           <div className="mx-auto max-w-[720px] pb-28 lg:h-full lg:overflow-y-auto lg:pb-8">
@@ -252,12 +256,13 @@ export default function DemoApp() {
             {tab === "satellite" && <SatelliteTab lat={DEMO_CENTRE[1]} lon={DEMO_CENTRE[0]} polygon={DEMO_POLYGON} fieldData={fieldData} />}
           </div>
         )}
+        </TabSwap>
       </main>
 
       <nav aria-label={t.demo.badge} className="pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-line bg-paper/95 backdrop-blur lg:hidden">
         <ul className="grid grid-cols-4">
           {TABS.map((x) => (
-            <li key={x.id}>{tabButton(x.id, x.icon, "flex h-14 w-full flex-col items-center justify-center gap-0.5 text-[11px]")}</li>
+            <li key={x.id}>{tabButton(x.id, x.icon, "flex h-14 w-full flex-col items-center justify-center gap-0.5 text-[11px]", "phone")}</li>
           ))}
         </ul>
       </nav>

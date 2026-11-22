@@ -20,7 +20,7 @@ export function DecisionCard({ plan, cropName, basinCapacityM3 }: { plan: DailyP
   const date = dayLabel(plan.date, locale, { weekday: "long", day: "numeric", month: "long" });
 
   return (
-    <section aria-labelledby="decision" className="px-4 pt-4 pb-2">
+    <section aria-labelledby="decision" className="ay-rise px-4 pt-4 pb-2">
       <p className="text-sm text-ink-soft">
         {t.today.planFor} · {date}
       </p>

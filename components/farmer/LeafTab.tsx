@@ -98,7 +98,7 @@ export function LeafTab({ onAskInChat }: { onAskInChat?: (diagnosisName: string)
           type="button"
           disabled={phase === "analyzing"}
           onClick={() => camera.current?.click()}
-          className="inline-flex h-14 items-center justify-center gap-2 rounded-xl bg-ink px-3 font-medium text-paper disabled:opacity-60"
+          className="inline-flex h-14 items-center justify-center gap-2 ay-btn rounded-xl bg-ink px-3 font-medium text-paper disabled:opacity-60"
         >
           <Camera size={20} aria-hidden />
           {t.leaf.take}

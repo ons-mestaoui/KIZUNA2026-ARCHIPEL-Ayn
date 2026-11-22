@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useFieldData } from "@/components/field/useFieldData";
 import { LangSwitch } from "@/components/LangSwitch";
 import { Logo } from "@/components/Logo";
+import { TabMark, TabSwap } from "@/components/motion/Motion";
 import { useSession } from "@/lib/auth-client";
 import { DEMO_EMAIL } from "@/lib/demo";
 import { fmt } from "@/lib/i18n";
@@ -44,14 +45,15 @@ export function FarmerApp() {
     if (session?.user.email === DEMO_EMAIL) router.replace("/demo");
   }, [session, router]);
 
-  const tabButton = (id: Exclude<TabId, "farm">, icon: React.ReactNode, className: string) => (
+  const tabButton = (id: Exclude<TabId, "farm">, icon: React.ReactNode, className: string, bar: "desktop" | "phone") => (
     <button
       key={id}
       type="button"
       aria-current={tab === id ? "page" : undefined}
       onClick={() => setTab(id)}
-      className={`${className} ${tab === id ? "font-semibold text-ink" : "text-ink-soft"}`}
+      className={`relative ${className} ${tab === id ? "font-semibold text-ink" : "text-ink-soft"}`}
     >
+      {tab === id && <TabMark layoutId={`farmer-${bar}`} edge={bar === "desktop" ? "bottom" : "top"} />}
       {icon}
       {t.shell.tabs[id]}
     </button>
@@ -85,7 +87,7 @@ export function FarmerApp() {
       <nav aria-label={t.farm.title} className="hidden border-y border-line bg-paper lg:block">
         <ul className="mx-auto flex max-w-[1600px] gap-2 px-4">
           {TABS.map((x) => (
-            <li key={x.id}>{tabButton(x.id, x.icon, "flex h-11 items-center gap-2 px-3 text-[14px]")}</li>
+            <li key={x.id}>{tabButton(x.id, x.icon, "flex h-11 items-center gap-2 px-3 text-[14px]", "desktop")}</li>
           ))}
         </ul>
       </nav>
@@ -108,13 +110,13 @@ export function FarmerApp() {
         {!state && status === "error" && (
           <div className="px-4 py-10">
             <p className="text-[16px]">{t.offline.error}</p>
-            <button type="button" onClick={refresh} className="mt-4 h-12 rounded-xl bg-ink px-5 font-medium text-paper">
+            <button type="button" onClick={refresh} className="mt-4 h-12 ay-btn rounded-xl bg-ink px-5 font-medium text-paper">
               {t.offline.retry}
             </button>
           </div>
         )}
         {state && (
-          <>
+          <TabSwap id={tab} className="lg:h-full">
             {tab === "today" && <TodayTab key={state.farm.id} state={state} refresh={refresh} fieldData={fieldData} />}
             {tab !== "today" && (
               <div className="mx-auto max-w-[720px] pb-28 lg:h-full lg:overflow-y-auto lg:pb-8">
@@ -134,7 +136,7 @@ export function FarmerApp() {
                 )}
               </div>
             )}
-          </>
+          </TabSwap>
         )}
       </main>
 
@@ -142,7 +144,7 @@ export function FarmerApp() {
       <nav aria-label={t.farm.title} className="pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-line bg-paper/95 backdrop-blur lg:hidden">
         <ul className="grid grid-cols-5">
           {TABS.map((x) => (
-            <li key={x.id}>{tabButton(x.id, x.icon, "flex h-14 w-full flex-col items-center justify-center gap-0.5 text-[11px]")}</li>
+            <li key={x.id}>{tabButton(x.id, x.icon, "flex h-14 w-full flex-col items-center justify-center gap-0.5 text-[11px]", "phone")}</li>
           ))}
         </ul>
       </nav>

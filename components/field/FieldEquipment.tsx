@@ -9,6 +9,7 @@ import type { DailyPlan } from "@/lib/engine/types";
 import { fmt } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/useLang";
 import type { HeightAt, XZ } from "./geometry";
+import { Basin, Cabinet, Generator, PadSlab, PumpHouse, SolarArray, Tree, Well, cellTexture, rippleTexture } from "./models";
 import { PAD, YARD, YARD_SCALE as S, type YardSpot, lateralLines } from "./yard";
 
 /** What the equipment needs to know about the farm: today's plan and the size of the kit. */
@@ -98,6 +99,8 @@ export interface FieldEquipmentProps {
   heightAt: HeightAt;
   /** index 0: the box that follows the pad around the screen; 1–3: the sun, pump and basin lines inside it */
   chips: MutableRefObject<(HTMLElement | null)[]>;
+  /** soft shadows from the panels and the buildings (desktops) */
+  shadows?: boolean;
 }
 
 /**
@@ -106,7 +109,7 @@ export interface FieldEquipmentProps {
  * day ribbon, so pressing Play shows the sun rise, the pump start, the basin fill and the water run out into the
  * field. Where the pad stands is illustrative; the farmer never told us.
  */
-export function FieldEquipment({ equipment, spot, ring, heightAt, chips }: FieldEquipmentProps) {
+export function FieldEquipment({ equipment, spot, ring, heightAt, chips, shadows = false }: FieldEquipmentProps) {
   const t = useT();
   const { plan, basinCapacityM3, kWp } = equipment;
   const source = plan.source;
@@ -168,14 +171,16 @@ export function FieldEquipment({ equipment, spot, ring, heightAt, chips }: Field
   const pipeGeo = useDisposable(useMemo(() => strips([...lineXZ, field.header], 1.1, 0.55, heightAt), [lineXZ, field.header, heightAt]));
   const wetGeo = useDisposable(useMemo(() => strips(lineXZ, 6, 0.4, heightAt), [lineXZ, heightAt]));
 
-  const panelMat = useDisposable(useMemo(() => new THREE.MeshStandardMaterial({ color: "#16264f", metalness: 0.55, roughness: 0.28, emissive: "#6f9bff", emissiveIntensity: 0.05 }), []));
+  // the glass of the modules: the cell texture, a little glossy, lit from inside by the sun (see useFrame)
+  const panelMat = useDisposable(useMemo(() => new THREE.MeshStandardMaterial({ map: cellTexture(), metalness: 0.35, roughness: 0.16, emissive: "#6f9bff", emissiveIntensity: 0.05, envMapIntensity: 1.3 }), []));
   const pipeMat = useDisposable(useMemo(() => new THREE.MeshBasicMaterial({ color: "#59616d", side: THREE.DoubleSide, toneMapped: false }), []));
   const wetMat = useDisposable(useMemo(() => new THREE.MeshBasicMaterial({ color: "#35c4dc", transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }), []));
   const pipeIdle = useMemo(() => new THREE.Color("#59616d"), []);
   const pipeWet = useMemo(() => new THREE.Color("#1aa3b8"), []);
 
   const water = useRef<THREE.Mesh>(null!);
-  const rotor = useRef<THREE.Mesh>(null!);
+  const surface = useRef<THREE.Mesh>(null!);
+  const rotor = useRef<THREE.Group>(null!);
   const led = useRef<THREE.MeshBasicMaterial>(null!);
   const mainDrops = useRef<THREE.InstancedMesh>(null!);
   const feedDrops = useRef<THREE.InstancedMesh>(null!);
@@ -205,8 +210,14 @@ export function FieldEquipment({ equipment, spot, ring, heightAt, chips }: Field
       const h = Math.max(0.001, f.basinFrac * (YARD.basin.wall - 0.25));
       water.current.scale.y += (h - water.current.scale.y) * Math.min(1, delta * 4);
       water.current.position.y = 0.12 + water.current.scale.y / 2;
+      if (surface.current) {
+        surface.current.visible = water.current.scale.y > 0.06;
+        surface.current.position.y = 0.125 + water.current.scale.y + 0.01;
+      }
+      rippleTexture().offset.x += delta * 0.02;
+      rippleTexture().offset.y += delta * 0.012;
     }
-    if (rotor.current && pumping) rotor.current.rotation.y += delta * 8;
+    if (rotor.current && pumping) rotor.current.rotation.x += delta * 9;
     if (led.current) led.current.color.set(pumping ? "#46d36b" : solar && f.pvFrac > 0.05 ? "#e3a21a" : "#8a909a");
 
     if (mainCurve) drops(mainDrops.current, mainCurve, L.main, time * 0.4, 0.8);
@@ -249,113 +260,42 @@ export function FieldEquipment({ equipment, spot, ring, heightAt, chips }: Field
       const x = ((projected.x + 1) / 2) * state.size.width;
       const y = ((1 - projected.y) / 2) * state.size.height;
       box.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
-      box.style.opacity = projected.z < 1 ? "1" : "0";
+      // seen from the side or below, the box would float in the air: it fades as the camera comes down to the rim
+      const camDist = state.camera.position.distanceTo(anchor) || 1;
+      const polar = Math.acos(clamp((state.camera.position.y - anchor.y) / camDist, -1, 1));
+      const sideFade = clamp((1.38 - polar) / 0.22, 0, 1);
+      box.style.opacity = projected.z < 1 ? String(sideFade) : "0";
     }
   });
 
-  const p = YARD.pv;
   return (
     <group>
       {/* everything on the pad is built facing west and mirrored when the pad stands west of the field */}
       <group position={[cx, padTop, cz]} scale={[side * S, S, S]}>
-        <mesh position={[0, -0.8 - 0.01, 0]}>
-          <boxGeometry args={[PAD.w, 1.6, PAD.d]} />
-          <meshStandardMaterial color="#d3cbb6" roughness={0.95} />
-        </mesh>
-
-        {/* solar panels, tilted to face the sun (south) */}
-        {solar &&
-          p.rows.map((z) =>
-            Array.from({ length: p.perRow }, (_, i) => (
-              <group key={`${z}-${i}`} position={[p.x - (p.perRow * (p.panelW + 0.2)) / 2 + (i + 0.5) * (p.panelW + 0.2), 1.2, z]}>
-                <group rotation-x={p.tilt}>
-                  <mesh>
-                    <boxGeometry args={[p.panelW, 0.12, p.panelD]} />
-                    <meshStandardMaterial color="#aeb7c4" metalness={0.6} roughness={0.4} />
-                  </mesh>
-                  <mesh position={[0, 0.07, 0]} material={panelMat}>
-                    <boxGeometry args={[p.panelW - 0.28, 0.06, p.panelD - 0.28]} />
-                  </mesh>
-                </group>
-                <mesh position={[0, -0.65, 0]}>
-                  <boxGeometry args={[0.2, 1.3, 0.2]} />
-                  <meshStandardMaterial color={COLORS.pipe} />
-                </mesh>
-              </group>
-            )),
-          )}
-
-        {/* the inverter cabinet, or the diesel generator that replaces the panels */}
+        <PadSlab shadows={shadows} />
+        {solar && <SolarArray glass={panelMat} shadows={shadows} />}
         {hasCabinet && (
           <group position={[YARD.cabinet.x, 0, diesel ? YARD.cabinet.z + 2 : YARD.cabinet.z]}>
-            <mesh position={[0, (diesel ? 3.4 : YARD.cabinet.h) / 2, 0]}>
-              <boxGeometry args={[diesel ? 6 : YARD.cabinet.w, diesel ? 3.4 : YARD.cabinet.h, diesel ? 3.4 : YARD.cabinet.d]} />
-              <meshStandardMaterial color={diesel ? "#c78a2c" : "#e6e8ea"} roughness={0.7} />
-            </mesh>
-            {diesel && (
-              <mesh position={[1.8, 5, 0]}>
-                <cylinderGeometry args={[0.28, 0.28, 3.2, 8]} />
-                <meshStandardMaterial color="#454b55" />
-              </mesh>
-            )}
-            <mesh position={[(diesel ? 6 : YARD.cabinet.w) / 2 + 0.02, 2.2, 0]}>
-              <sphereGeometry args={[0.28, 8, 6]} />
-              <meshBasicMaterial ref={led} color="#8a909a" toneMapped={false} />
-            </mesh>
+            {diesel ? <Generator led={led} shadows={shadows} /> : <Cabinet led={led} shadows={shadows} />}
           </group>
         )}
-
-        {/* pump house (a valve box on a shared network) */}
         <group position={[YARD.pump.x, 0, YARD.pump.z]}>
-          <mesh position={[0, YARD.pump.h / 2, 0]}>
-            <boxGeometry args={[YARD.pump.w, YARD.pump.h, YARD.pump.d]} />
-            <meshStandardMaterial color="#e0ddd2" roughness={0.9} />
-          </mesh>
-          <mesh position={[0, YARD.pump.h + 0.2, 0]}>
-            <boxGeometry args={[YARD.pump.w + 0.8, 0.4, YARD.pump.d + 0.8]} />
-            <meshStandardMaterial color="#8e5b3c" roughness={0.8} />
-          </mesh>
-          <mesh ref={rotor} position={[0, YARD.pump.h + 0.7, 0]}>
-            <cylinderGeometry args={[0.95, 0.95, 0.3, 6]} />
-            <meshStandardMaterial color={COLORS.sun} metalness={0.3} roughness={0.4} />
-          </mesh>
+          <PumpHouse rotor={rotor} shadows={shadows} />
         </group>
-
-        {/* the well */}
         {hasWell && (
           <group position={[YARD.well.x, 0, YARD.well.z]}>
-            <mesh position={[0, 0.7, 0]}>
-              <cylinderGeometry args={[1.2, 1.3, 1.4, 14]} />
-              <meshStandardMaterial color="#cfcabb" roughness={0.9} />
-            </mesh>
-            <mesh position={[0, 1.5, 0]}>
-              <cylinderGeometry args={[0.8, 0.8, 0.2, 14]} />
-              <meshStandardMaterial color="#3b434d" metalness={0.5} roughness={0.5} />
-            </mesh>
+            <Well shadows={shadows} />
           </group>
         )}
-
-        {/* the storage basin, with water that rises and falls */}
         {hasBasin && (
           <group position={[YARD.basin.x, 0, YARD.basin.z]}>
-            {[
-              [0, YARD.basin.wall / 2, -YARD.basin.d / 2, YARD.basin.w, YARD.basin.wall, 0.5],
-              [0, YARD.basin.wall / 2, YARD.basin.d / 2, YARD.basin.w, YARD.basin.wall, 0.5],
-              [-YARD.basin.w / 2, YARD.basin.wall / 2, 0, 0.5, YARD.basin.wall, YARD.basin.d],
-              [YARD.basin.w / 2, YARD.basin.wall / 2, 0, 0.5, YARD.basin.wall, YARD.basin.d],
-              [0, 0.06, 0, YARD.basin.w, 0.12, YARD.basin.d],
-            ].map(([x, y, z, w, h, d], i) => (
-              <mesh key={i} position={[x, y, z]}>
-                <boxGeometry args={[w, h, d]} />
-                <meshStandardMaterial color="#e4e1d6" roughness={0.9} />
-              </mesh>
-            ))}
-            <mesh ref={water} position={[0, 0.13, 0]} scale={[1, 0.001, 1]}>
-              <boxGeometry args={[YARD.basin.w - 0.9, 1, YARD.basin.d - 0.9]} />
-              <meshStandardMaterial color={COLORS.water} transparent opacity={0.9} roughness={0.15} metalness={0.1} />
-            </mesh>
+            <Basin water={water} surface={surface} shadows={shadows} />
           </group>
         )}
+        {/* a few olive trees round the edge */}
+        <Tree at={[-20.5, 0, -14.5]} scale={1.1} shadows={shadows} />
+        <Tree at={[20.5, 0, -14.8]} scale={0.9} shadows={shadows} />
+        <Tree at={[-20.8, 0, 15]} scale={1} shadows={shadows} />
       </group>
 
       {/* pipes, cable and the water moving through them */}

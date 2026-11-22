@@ -1,4 +1,9 @@
-# Goutte d'Or AI
+# Ayn (عين · アイン), formerly Goutte d'Or AI
+
+*Ayn* is Arabic for both an **eye** and a **spring of water**: the satellite looking at the land, and the water that feeds it.
+The name lives in one file, `lib/brand.ts` (plus the translated sentences in `lib/i18n`), so it can change again in minutes.
+`DEMO_EMAIL` (`demo@goutte-dor.app`), the `gd-*` saved-state keys and the folder name keep the old name on purpose: renaming them would
+break seeded accounts and saved state.
 
 Know exactly when to water your farm — from the weather, the satellites and your solar pump.
 Built for the **Kizuna hackathon (Tunisia × Japan)** · theme: water, energy, agriculture.
@@ -16,11 +21,33 @@ last watering) and gets:
 
 The interface is in **English, العربية (RTL) and 日本語**; the AI answers in whatever language the farmer writes.
 
+## The front page
+
+`/` is a static landing page (`components/landing/`): a nav bar built for keyboards and screen readers (skip link, scroll-spy,
+a modal menu on phones), a hero where the golden drop sits in an eye that **opens as you scroll** onto drone footage, a
+"Watch it work" dialog, one day at the orchard (the app's own recording), the app on a phone in the visitor's language,
+what the app can and cannot tell you, and the team. It is trilingual (English, Arabic right-to-left, Japanese), respects
+"reduce motion" (nothing pinned, nothing autoplays) and keeps the pitch mode hidden: no text or link on `/` mentions it.
+
+* Media is local, so it works offline. `public/media`: the hero is a free stock drone clip (*Aerial View of Olive Groves at
+  Sunrise*, Maciej Chojnacki, Pexels licence; credited in the footer), re-encoded to a 4 MB 1080p loop with a seamless
+  dissolve (`node scripts/media/hero.mjs <the 4K original>`; the original is not kept in the repository). The day loop and the
+  tour are recordings of the real app: `node scripts/media/record.mjs` (frames, 3D headless) then `node scripts/media/encode.mjs`
+  (ffmpeg). The phone screens: `node scripts/media/screens.mjs`. The team portraits: `node scripts/media/portraits.mjs`.
+* `npm test` checks every media file exists and fits the budget, and that the colour tokens keep text readable (WCAG AA) and
+  the focus ring visible on every surface.
+* `node scripts/browser/landing.mjs <base> <outDir> <en|ar|ja> <phone|desktop>` checks layout, the hidden doors, the keyboard and
+  reduced motion; `scripts/browser/scroll-perf.mjs` times the scroll (`GPU=1` uses the real graphics card).
+* Motion across the app (`components/motion/Motion.tsx`): tab content eases in, a bar slides between tabs, onboarding steps
+  ease in, main buttons lift and press. Only transform and opacity move, and `reduce motion` turns movement into a fade.
+
 ## Your field from space
 
 The farmer **outlines their field on the map** (tap the corners, or start from a square of N hectares). The app
 then shows that field in 3D: the real photo, the boundary as a gold wall, the world around it veiled, and the
-satellite data on top.
+satellite data on top. The field is a **floating island**: the real ground on top, a craggy rock body tapering below it, rocks
+drifting around it and clouds underneath (`components/field/island.ts`, `Clouds.tsx`). The farm's kit (solar modules on
+racks, pump house, well, basin with rippling water, or a diesel generator) is modelled in `components/field/models.tsx`.
 
 * **Data:** Sentinel-2 L2A through the free [Copernicus Data Space](https://dataspace.copernicus.eu) account
   (the app asks for NDVI and NDMI at 10 m, one clear pass and one about two weeks earlier), photo tiles from
@@ -234,6 +261,7 @@ Phones browsing plain `http://` cannot use *Use my location* (browsers require H
   (contains modified Copernicus Sentinel data 2024, CC BY-NC-SA 4.0 — **non-commercial**)
 * Terrain: [Terrain Tiles on AWS](https://registry.opendata.aws/terrain-tiles/) (Mapzen / Tilezen; built from
   SRTM, ASTER and other open elevation data — see their attribution page)
+* Landing-page hero footage: *Aerial View of Olive Groves at Sunrise* by Maciej Chojnacki, [Pexels](https://www.pexels.com/video/aerial-view-of-olive-groves-at-sunrise-29615503/) (Pexels licence: free for commercial use, no credit required)
 * Method: FAO Irrigation & Drainage Paper 56
 * AI: Google Gemini · Voice: Microsoft Edge neural voices (`ar-TN`, `ja-JP`, `en-GB`, `fr-FR`)
 

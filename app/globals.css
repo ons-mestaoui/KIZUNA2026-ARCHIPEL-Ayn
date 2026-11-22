@@ -1,22 +1,27 @@
 @import "tailwindcss";
 
 /*
-  Goutte d'Or tokens
-  limewash  — Tunisian whitewashed wall, readable in full sun
-  ink       — ai-zome indigo (藍), echoes Nabeul cobalt pottery: the Kizuna link
+  Ayn tokens
+  limewash  — Tunisian whitewashed wall (Sidi Bou Said), readable in full sun
+  ink       — aizome indigo (藍), echoes Nabeul cobalt pottery: the Kizuna link
+  night     — the deep end of the same indigo, for the landing's dark sections
+  cobalt    — the blue of a Tunisian door
   sun       — the golden drop: solar energy
   water     — irrigation basin turquoise
   leaf      — citrus leaf
   soil-dry / soil-wet — the root-zone scale the whole app is about
 */
 :root {
-  --limewash: #eef1ec;
-  --paper: #fbfcfa;
-  --ink: #17264a;
-  --ink-soft: #55607a;
-  --line: #d5dbd3;
+  --limewash: #f5f2e9;
+  --paper: #fdfcf8;
+  --ink: #14213f;
+  --ink-soft: #525c75;
+  --line: #dcd8ca;
+  --night: #0d1731;
+  --night-2: #16264d;
+  --cobalt: #2c5fd0;
   --sun: #e3a21a;
-  --sun-deep: #a86f00;
+  --sun-deep: #8f5d00; /* amber text: 5:1 on the page (the old #a86f00 was 3.8:1) */
   --water: #0b90b5;
   --water-deep: #0b5f6d;
   /* chart marks — validated (dataviz validator, light, on limewash): CVD ΔE 19.9 */
@@ -35,6 +40,9 @@
   --color-ink: var(--ink);
   --color-ink-soft: var(--ink-soft);
   --color-line: var(--line);
+  --color-night: var(--night);
+  --color-night-2: var(--night-2);
+  --color-cobalt: var(--cobalt);
   --color-sun: var(--sun);
   --color-sun-deep: var(--sun-deep);
   --color-water: var(--water);
@@ -47,6 +55,18 @@
   --color-mark-water: var(--mark-water);
   --color-mark-ghost: var(--mark-ghost);
   --font-sans: var(--font-readex), var(--font-noto-jp), system-ui, sans-serif;
+  --font-display: var(--display);
+}
+
+/* Display type follows the language: a grotesque for Latin, a geometric Kufi for Arabic, a soft gothic for Japanese. */
+:root {
+  --display: var(--font-bricolage), var(--font-readex), var(--font-noto-jp), system-ui, sans-serif;
+}
+:lang(ar) {
+  --display: var(--font-reem), var(--font-readex), system-ui, sans-serif;
+}
+:lang(ja) {
+  --display: var(--font-zen), var(--font-noto-jp), system-ui, sans-serif;
 }
 
 button,
@@ -127,8 +147,16 @@ h3 {
 }
 
 :focus-visible {
-  outline: 3px solid var(--sun);
+  outline: 3px solid var(--cobalt); /* 5:1 on the light surfaces */
   outline-offset: 2px;
+}
+/* on the dark sections of the landing page the ring is gold (8:1); on the gold band it is the night indigo */
+.bg-night :focus-visible,
+.bg-night-2 :focus-visible {
+  outline-color: var(--sun);
+}
+.bg-sun :focus-visible {
+  outline-color: var(--night);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -138,4 +166,143 @@ h3 {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ── landing page ─────────────────────────────────────────────────────────────────────────────────────────────
+   The hero is an eye: the real field seen through an almond-shaped window that opens as the page scrolls (see Stage.tsx). */
+.ay-fade {
+  animation: ay-fade 700ms ease-out both;
+}
+@keyframes ay-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.ay-ripple {
+  position: absolute;
+  left: 50%;
+  top: 62%;
+  width: 260%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1.5px solid var(--sun);
+  translate: -50% -50%;
+  opacity: 0;
+  animation: ay-ripple 2.8s cubic-bezier(0.2, 0.6, 0.2, 1) infinite;
+}
+.ay-contours {
+  background:
+    radial-gradient(60% 55% at 68% 50%, rgb(44 95 208 / 0.28), transparent 70%),
+    radial-gradient(40% 40% at 10% 100%, rgb(227 162 26 / 0.1), transparent 70%);
+}
+.ay-spin {
+  animation: ay-spin 160s linear infinite;
+  will-change: transform;
+}
+.ay-cue {
+  width: 1.5px;
+  height: 44px;
+  background: linear-gradient(var(--paper), transparent);
+  transform-origin: top;
+  animation: ay-cue 2.2s ease-in-out infinite;
+}
+.ay-rise {
+  animation: ay-rise 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+.ay-btn {
+  transition: transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 160ms, box-shadow 160ms;
+}
+.ay-btn:hover {
+  transform: translateY(-2px);
+}
+.ay-btn:disabled:hover {
+  transform: none;
+}
+.ay-btn:active {
+  transform: translateY(0) scale(0.97);
+}
+@keyframes ay-ripple {
+  0% {
+    transform: scale(0.2);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+@keyframes ay-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes ay-cue {
+  0% {
+    transform: scaleY(0);
+    opacity: 1;
+  }
+  60% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 0;
+  }
+}
+@keyframes ay-rise {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* team portraits: a shared indigo-and-gold duotone that melts into colour on hover or focus (it also evens out four very different photo backgrounds) */
+.ay-duo img {
+  filter: grayscale(1) contrast(1.06);
+  transition: filter 600ms ease, transform 600ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ay-duo-tint {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, #1b2b55 0%, #3d62b8 60%, #c2902a 140%);
+  mix-blend-mode: color;
+  opacity: 0.72;
+  transition: opacity 600ms ease;
+  pointer-events: none;
+}
+.ay-duo:hover img,
+.ay-duo:focus-within img,
+.ay-duo:active img {
+  filter: none;
+  transform: scale(1.03);
+}
+.ay-duo:hover .ay-duo-tint,
+.ay-duo:focus-within .ay-duo-tint,
+.ay-duo:active .ay-duo-tint {
+  opacity: 0;
+}
+
+/* Arabic: letters join, so no letter-spacing anywhere; and the Kufi display face is lighter than Latin bold */
+:lang(ar) h1,
+:lang(ar) h2,
+:lang(ar) h3,
+:lang(ar) .font-display {
+  letter-spacing: 0 !important;
+}
+:lang(ar) .font-display {
+  font-weight: 600 !important;
 }

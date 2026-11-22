@@ -1,6 +1,6 @@
 // English is the source of truth: ar.ts and ja.ts must provide every key (enforced by the Dict type).
 export const en = {
-  appName: "Goutte d'Or",
+  appName: "Ayn",
   tagline: "Know exactly when to water your farm.",
   crops: {
     citrus: "Citrus",
@@ -53,7 +53,7 @@ export const en = {
       layers: { streets: "Map", satellite: "Satellite", sentinel: "Sentinel-2" },
       outline: {
         title: "Outline your field",
-        intro: "Draw the edges of your field and Goutte d'Or shows it from space in 3D: which part is greener, which part deserves a look.",
+        intro: "Draw the edges of your field and Ayn shows it from space in 3D: which part is greener, which part deserves a look.",
         start: "Outline my field",
         edit: "Edit outline",
         remove: "Remove outline",
@@ -119,17 +119,69 @@ export const en = {
     language: "Language",
   },
   landing: {
-    title: "Water your farm with the weather and the sun, not guesswork.",
-    lead: "Tell us where your farm is. Goutte d'Or reads the weather and the satellites, then tells you when to water, how much, and when to run your solar pump.",
-    cta: "Create your farm account",
-    haveAccount: "I already have an account",
-    features: [
-      { title: "Watering plan", text: "A daily and 7-day plan for your own farm." },
-      { title: "Leaf check", text: "Take a photo of a leaf. Find out if it is thirst, hunger or a pest." },
-      { title: "Ask anything", text: "Chat in Arabic, Tunisian, French, Japanese or English, and hear the answer out loud." },
-      { title: "Seen from space", text: "Rain, soil moisture and heat from Japanese and European satellites." },
-    ],
-    kizuna: "Built for the Kizuna hackathon, Tunisia × Japan.",
+    skip: "Skip to content",
+    nav: { label: "Main menu", field: "Your field", day: "One day", languages: "Languages", about: "About us", open: "Open the menu", close: "Close the menu" },
+    hero: {
+      title: "Water your orchard exactly when it needs it.",
+      lead: "Ayn reads the weather and the satellites for your own field, then tells you when to water, how much, and when to run your solar pump.",
+      fact: "Shown on the real 21 July 2026 heatwave at Cap Bon: 45.8 °C.",
+      cta: "Create your farm",
+      watch: "Watch it work",
+      signIn: "I have an account",
+    },
+    field: {
+      title: "Your field, seen from space.",
+      text: "Draw its edges. Ayn lifts your field onto real terrain and Sentinel-2 imagery, then splits it into zones so you know which part to check first.",
+    },
+    day: {
+      title: "One day, from first light.",
+      text: "The plan follows the sun. Panels power the pump, the basin stores the water, and the drip lines deliver it when the heat has passed.",
+      steps: [
+        { when: "Dawn", text: "Water before the sun is up, so little is lost to the heat." },
+        { when: "Midday", text: "The pump runs on solar power and fills the basin." },
+        { when: "Dusk", text: "Water again once the ground has cooled." },
+      ],
+    },
+    languages: {
+      title: "Ask in your own words.",
+      text: "Chat in Arabic, Tunisian, French, Japanese or English and hear the answer aloud. Photograph a leaf to learn if it is thirst, hunger or a pest.",
+      screens: ["Today's plan", "Ask", "From space"],
+    },
+    honest: {
+      title: "What Ayn can and cannot tell you.",
+      items: [
+        { title: "10 m pixels", text: "One hectare is about 100 satellite pixels. Under a quarter of a hectare you get one reading, not zones." },
+        { title: "Green is not wet", text: "Low greenness can mean young trees, gaps or weeds. Ayn says water this zone first only when greenness and leaf water agree; otherwise it says go and look." },
+        { title: "The engine counts", text: "Volumes come from a FAO-56 water balance for your crop and soil. The AI explains the plan; it never sets the amount." },
+      ],
+    },
+    about: {
+      title: "Made in Tunisia, with Japan in mind.",
+      text: "Ayn was built for the Kizuna hackathon, Tunisia × Japan, on water, energy and agriculture. It reads Japanese and European satellites side by side.",
+      meaning: "In Arabic, ayn means both an eye and a spring of water.",
+      teamTitle: "The team",
+      portrait: "Portrait of {name}",
+    },
+    final: {
+      title: "Start with your field.",
+      text: "Draw its edges on the map and Ayn plans tomorrow's watering.",
+      cta: "Create your farm",
+      signIn: "I have an account",
+    },
+    footer: {
+      credits:
+        "Weather: Open-Meteo, ERA5. Satellites: Copernicus Sentinel-2 (ESA), JAXA. Imagery © Esri, Maxar. Map data © OpenStreetMap. Footage: the opening drone shot is by Maciej Chojnacki (Pexels); the other clips are screen recordings of the app on a real Cap Bon orchard, with the pump, panels and basin drawn for illustration.",
+      kizuna: "Built for the Kizuna hackathon, Tunisia × Japan.",
+    },
+    video: {
+      title: "Watch it work",
+      close: "Close",
+      pause: "Pause the video",
+      play: "Play the video",
+      hero: "A drone flight over olive groves at sunrise.",
+      day: "One day at the orchard: panels, pump, basin and drip lines working from dawn to dusk.",
+      tour: "A short tour of the app: the field in 3D, then one day of watering.",
+    },
   },
   auth: {
     signInTitle: "Welcome back",

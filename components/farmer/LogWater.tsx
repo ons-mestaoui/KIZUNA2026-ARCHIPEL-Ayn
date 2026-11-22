@@ -107,7 +107,7 @@ export function LogWater({
             dir="ltr"
             className="h-12 min-w-0 flex-1 rounded-xl border border-line bg-white px-3.5 text-[16px]"
           />
-          <button type="submit" disabled={busy || !(value > 0)} className="h-12 rounded-xl bg-ink px-5 font-medium text-paper disabled:opacity-50">
+          <button type="submit" disabled={busy || !(value > 0)} className="h-12 ay-btn rounded-xl bg-ink px-5 font-medium text-paper disabled:opacity-50">
             {t.today.done.save}
           </button>
         </form>

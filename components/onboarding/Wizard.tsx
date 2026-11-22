@@ -10,6 +10,7 @@ import type { FarmDTO } from "@/lib/farm-types";
 import { fmt } from "@/lib/i18n";
 import { useLang, useT } from "@/lib/i18n/useLang";
 import { type Form, explainRefusal, fromFarm, initialForm, todayISO, toPayload, validateStep } from "./form";
+import { StepSwap } from "@/components/motion/Motion";
 import { CropStep, LocationStep, SoilStep, WaterStep } from "./steps";
 
 const STEPS = 4;
@@ -146,12 +147,12 @@ export function Wizard() {
         {loading ? (
           <p className="text-ink-soft">{t.common.loading}</p>
         ) : (
-          <>
+          <StepSwap id={step}>
             {step === 0 && <LocationStep {...stepProps} />}
             {step === 1 && <CropStep {...stepProps} />}
             {step === 2 && <WaterStep {...stepProps} />}
             {step === 3 && <SoilStep {...stepProps} />}
-          </>
+          </StepSwap>
         )}
         {error && (
           <p role="alert" className="mt-4 rounded-lg bg-alarm/10 px-3 py-2 text-[15px] text-alarm">
@@ -183,7 +184,7 @@ export function Wizard() {
             type="button"
             onClick={next}
             disabled={saving || loading}
-            className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-ink px-5 text-[16px] font-medium text-paper disabled:opacity-60"
+            className="inline-flex h-12 flex-1 items-center justify-center gap-2 ay-btn rounded-xl bg-ink px-5 text-[16px] font-medium text-paper disabled:opacity-60"
           >
             {last ? (saving ? t.onboarding.saving : t.onboarding.save) : t.common.next}
             {!last && <ArrowRight size={18} className="rtl:rotate-180" aria-hidden />}

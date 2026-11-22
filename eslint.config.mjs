@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // third-party agent skills installed for local use, and scratch output
+    ".claude/**",
+    ".agents/**",
+    "browser-out/**",
+    "motion-audits/**",
   ]),
 ]);
 

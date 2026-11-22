@@ -72,7 +72,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const otherHref = next ? `${other}?next=${encodeURIComponent(next)}` : other;
 
   return (
-    <main className="mx-auto flex min-h-svh w-full max-w-[460px] flex-col px-4 pt-[max(16px,env(safe-area-inset-top))] pb-8">
+    <main className="ay-rise mx-auto flex min-h-svh w-full max-w-[460px] flex-col px-4 pt-[max(16px,env(safe-area-inset-top))] pb-8">
       <header className="flex flex-wrap items-center justify-between gap-3 py-2">
         <Logo />
         <LangSwitch />
@@ -117,7 +117,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           <button
             type="submit"
             disabled={busy}
-            className="mt-1 h-12 w-full rounded-xl bg-ink text-[16px] font-medium text-paper disabled:opacity-60"
+            className="mt-1 h-12 w-full ay-btn rounded-xl bg-ink text-[16px] font-medium text-paper disabled:opacity-60"
           >
             {busy ? t.common.loading : isUp ? t.common.signUp : t.common.signIn}
           </button>

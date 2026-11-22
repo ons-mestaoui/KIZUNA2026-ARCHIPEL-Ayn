@@ -60,7 +60,7 @@ export function ZoneCard({ field, decision }: { field: FieldDTO; decision: "irri
   const frameDate = field.frames[idx]?.date ?? latest.date;
 
   return (
-    <section aria-labelledby="zone-card" className="mx-4 my-3 rounded-2xl bg-paper p-4 ring-1 ring-line">
+    <section aria-labelledby="zone-card" className="ay-rise mx-4 my-3 rounded-2xl bg-paper p-4 ring-1 ring-line" style={{ "--d": "140ms" } as React.CSSProperties}>
       <p className="text-[13px] text-ink-soft">
         {c.title} · {fmt(c.pass, { date: date(frameDate) })}
       </p>

@@ -47,3 +47,10 @@ next-env.d.ts
 # local SQLite (dev / laptop fallback)
 /data/local.db*
 /drizzle/meta/*.snapshot.json.bak
+
+# third-party agent skills (local only) and their scratch output
+/.claude/skills/
+/.agents/
+/skills-lock.json
+/.taste-skill/
+/motion-audits/

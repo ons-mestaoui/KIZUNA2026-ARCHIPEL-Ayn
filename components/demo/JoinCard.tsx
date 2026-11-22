@@ -53,7 +53,7 @@ export function JoinCard() {
           <div className="size-28 shrink-0 animate-pulse rounded-lg bg-line" aria-hidden />
         )}
         <div className="min-w-0">
-          <Link href="/sign-up" className="inline-flex h-11 items-center rounded-xl bg-ink px-4 text-[15px] font-medium text-paper">
+          <Link href="/sign-up" className="inline-flex h-11 items-center ay-btn rounded-xl bg-ink px-4 text-[15px] font-medium text-paper">
             {t.demo.join.cta}
           </Link>
           <p className="tabular mt-2 text-[12px] break-all text-ink-soft" dir="ltr">

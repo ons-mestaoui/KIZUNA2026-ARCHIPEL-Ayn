@@ -333,7 +333,7 @@ export function LocationStep({ form, set }: StepProps) {
                 {o.squareGo}
               </button>
             </div>
-            <button type="button" onClick={finishOutline} className="mt-2 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-ink font-medium text-paper">
+            <button type="button" onClick={finishOutline} className="mt-2 inline-flex h-12 w-full items-center justify-center gap-2 ay-btn rounded-xl bg-ink font-medium text-paper">
               <Check size={18} aria-hidden />
               {o.done}
             </button>
