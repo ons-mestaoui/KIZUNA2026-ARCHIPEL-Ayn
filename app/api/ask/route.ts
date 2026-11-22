@@ -6,6 +6,7 @@ import { ARABIC, REMINDER } from "@/lib/script-guard";
 import { farmContext } from "@/lib/server/aiContext";
 import { fieldContext } from "@/lib/server/fieldContext";
 import { CHAT_MODELS, generateText } from "@/lib/server/gemini";
+import type { Part } from "@google/genai";
 import { loadFarmState } from "@/lib/server/farmState";
 import { DEMO_EMAIL, getFarm, getUser, unauthorized } from "@/lib/server/session";
 import { cannedAnswer, demoOffline } from "@/lib/server/demoCanned";
@@ -15,16 +16,26 @@ import { diagnoseCropVision } from "@/lib/server/cropVision";
 export const maxDuration = 60;
 
 const PHOTO_TAG = "📷 "; // history keeps text only; this marks a message that came with a photo
+const VOICE_TAG = "🎙️ "; // marks a message that was sent as a voice message
 
-const body = z.object({
-  message: z.string().trim().min(1).max(800),
-  image: z
-    .string()
-    .max(4_000_000)
-    .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/)
-    .optional(),
-  lang: z.enum(["en", "ar", "ja"]),
-});
+const body = z
+  .object({
+    message: z.string().trim().max(1200).optional().default(""),
+    image: z
+      .string()
+      .max(4_000_000)
+      .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/)
+      .optional(),
+    audio: z
+      .string()
+      .max(6_000_000)
+      .regex(/^data:audio\/(webm|mp4|m4a|wav|ogg|mpeg|aac|x-m4a);base64,[A-Za-z0-9+/=]+$/)
+      .optional(),
+    lang: z.enum(["en", "ar", "ja"]),
+  })
+  .refine((data) => data.message.length > 0 || !!data.audio || !!data.image, {
+    message: "Either message, audio, or image must be provided",
+  });
 
 const UI_LANGUAGE: Record<Lang, string> = { en: "English", ar: "Tunisian Arabic (Derja)", ja: "Japanese" };
 
@@ -33,7 +44,7 @@ const system = (lang: Lang) => `You are "Goutte d'Or", a friendly, practical ass
 You have access to an in-house deep learning vision tool (MobileNetV3 trained specifically for tomato diseases and Tuta absoluta in Tunisia × Japan). When the farmer uploads a leaf photo or asks about crop symptoms, the tool output is provided in your context. Use it as ground truth to explain the problem, give safe practical cultural/biological steps, and link it to their watering situation.
 
 How to answer:
-- Reply in the language the farmer wrote in. If they write Arabic (Arabic script or Latin letters such as "3arbi"), answer in Tunisian Arabic (Derja) in Arabic script, with simple everyday words. French gets French, Japanese gets Japanese, English gets English. If the language is unclear, use ${UI_LANGUAGE[lang]}.
+- Reply in the language the farmer wrote or spoke in. The farmer can send typed messages or spoken voice messages. If they speak or write Arabic (Arabic script or Latin letters such as "3arbi"), answer in Tunisian Arabic (Derja) in Arabic script, with simple everyday words. French gets French, Japanese gets Japanese, English gets English. If the language is unclear, use ${UI_LANGUAGE[lang]}.
 - Keep it short: at most 5 sentences. No markdown, no bullet symbols, no emoji. It will be read aloud.
 - For weather, water balance and the plan, use ONLY the farm facts. If something is not in the facts, say you do not know instead of guessing.
 - Practical and safe: never give pesticide doses or brand names; for chemical treatment say to ask a licensed adviser (in Tunisia: the CRDA). If a plant looks sick and there is no photo yet, suggest attaching a photo here.
@@ -52,23 +63,26 @@ export async function POST(request: Request) {
 
   const parsed = body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "invalid" }, { status: 422 });
-  const { message, image, lang } = parsed.data;
+  const { message, image, audio, lang } = parsed.data;
 
   const demo = user.email === DEMO_EMAIL;
   const q = await takeQuota(user.id, "chats", demo ? DEMO_CAPS.chats : undefined);
   if (!q.ok) return Response.json({ error: "quota", cap: q.cap }, { status: 429 });
 
+  const defaultVoiceLabel = lang === "ar" ? "رسالة صوتية" : lang === "ja" ? "ボイスメッセージ" : "Voice message";
+  const userContent = (audio ? VOICE_TAG : "") + (image ? PHOTO_TAG : "") + (message || defaultVoiceLabel);
+
   // Presenter-controlled offline mode: a saved answer for the demo's few scripted topics.
   if (demo && demoOffline()) {
-    const reply = cannedAnswer(message, lang);
+    const reply = cannedAnswer(message || "water", lang);
     const [, assistant] = await db
       .insert(schema.chatMessage)
       .values([
-        { farmId: farm.id, role: "user", content: (image ? PHOTO_TAG : "") + message },
+        { farmId: farm.id, role: "user", content: userContent },
         { farmId: farm.id, role: "assistant", content: reply },
       ])
       .returning({ id: schema.chatMessage.id, createdAt: schema.chatMessage.createdAt });
-    return Response.json({ id: assistant.id, createdAt: assistant.createdAt.toISOString(), reply, model: "saved", cached: true });
+    return Response.json({ id: assistant.id, createdAt: assistant.createdAt.toISOString(), reply, userContent, model: "saved", cached: true });
   }
 
   try {
@@ -80,6 +94,8 @@ export async function POST(request: Request) {
 
     let toolResultContext = "";
     const [header, base64] = image ? image.split(",", 2) : [null, null];
+    const [audioHeader, audioBase64] = audio ? audio.split(",", 2) : [null, null];
+    const audioMime = audioHeader ? audioHeader.slice(5, audioHeader.indexOf(";")) : "audio/webm";
 
     // If an image was submitted, invoke the in-house deep learning model as an expert tool!
     if (base64) {
@@ -89,7 +105,7 @@ export async function POST(request: Request) {
           .insert(schema.diagnosis)
           .values({
             farmId: farm.id,
-            thumb: image && image.length < 50_000 ? image : null,
+            thumb: typeof image === "string" && image.length < 50_000 ? image : null,
             lang,
             resultJson: JSON.stringify(vision.diagnosis),
           })
@@ -124,11 +140,27 @@ Tool Directive: The farmer uploaded a leaf photo which was just analyzed by our 
     const history = recent.reverse().map((m) => ({ role: m.role === "assistant" ? ("model" as const) : ("user" as const), parts: [{ text: m.content }] }));
     const fieldLine = await fieldContext(farm, state?.week[0]?.plan.grossM3 ? "irrigate" : "skip", { demo }); // satellite sentences, if a view is already cached
     const facts = `\n\nFarm facts:\n${farmContext(state, farm)}${fieldLine ? `\n${fieldLine}` : ""}${latestDiagContext}${toolResultContext}`;
+
+    const userParts: Part[] = [];
+    if (image && header && base64) {
+      userParts.push({ inlineData: { mimeType: header.slice(5, header.indexOf(";")), data: base64 } });
+    }
+    if (audio && audioHeader && audioBase64) {
+      userParts.push({ inlineData: { mimeType: audioMime, data: audioBase64 } });
+    }
+    if (message) {
+      userParts.push({ text: message });
+    } else if (audio) {
+      userParts.push({
+        text: "[The farmer sent this voice message. Listen carefully to what they say in the audio and answer directly in concise speech-ready sentences using the farm facts. If spoken in Arabic or Tunisian Derja, reply in Tunisian Derja in Arabic script.]",
+      });
+    }
+
     const contents = [
       ...history,
       {
         role: "user" as const,
-        parts: [...(image ? [{ inlineData: { mimeType: header!.slice(5, header!.indexOf(";")), data: base64! } }] : []), { text: message }],
+        parts: userParts,
       },
     ];
     const ask = (extra: string, deadlineMs: number) =>
@@ -136,7 +168,7 @@ Tool Directive: The farmer uploaded a leaf photo which was just analyzed by our 
 
     let { text, model } = await ask("", 30_000);
     // A question written in Arabic letters must be answered in Arabic letters, not in Latin-letter Derja ("3la war9at").
-    if (ARABIC.test(message) && !ARABIC.test(text)) {
+    if ((message && ARABIC.test(message)) && !ARABIC.test(text)) {
       const again = await ask(REMINDER.ar, 15_000).catch(() => null);
       if (again && ARABIC.test(again.text)) ({ text, model } = again);
     }
@@ -145,11 +177,11 @@ Tool Directive: The farmer uploaded a leaf photo which was just analyzed by our 
     const [, assistant] = await db
       .insert(schema.chatMessage)
       .values([
-        { farmId: farm.id, role: "user", content: (image ? PHOTO_TAG : "") + message },
+        { farmId: farm.id, role: "user", content: userContent },
         { farmId: farm.id, role: "assistant", content: reply },
       ])
       .returning({ id: schema.chatMessage.id, createdAt: schema.chatMessage.createdAt });
-    return Response.json({ id: assistant.id, createdAt: assistant.createdAt.toISOString(), reply, model });
+    return Response.json({ id: assistant.id, createdAt: assistant.createdAt.toISOString(), reply, userContent, model });
   } catch (e) {
     await refundQuota(user.id, "chats");
     const busy = /429|quota|RESOURCE_EXHAUSTED|503|UNAVAILABLE|overloaded|timeout|aborted/i.test(String(e));
