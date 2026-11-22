@@ -76,9 +76,9 @@ await clickText("Week");
 await wait(1500);
 body = await text();
 ok(/Next 7 days/.test(body), "Week tab");
-ok((await page.evaluate(() => document.querySelectorAll("section ul > li").length)) >= 7, "seven day rows");
-await clickText("Today", "summary");
-await wait(500);
+ok((await page.evaluate(() => document.querySelectorAll('[role="tab"]').length)) >= 7, "seven days to pick from");
+await clickText("Fri", "[role=tab]");
+await wait(600);
 await shot("3-week");
 
 // Farm

@@ -41,6 +41,14 @@ what the app can and cannot tell you, and the team. It is trilingual (English, A
 * Motion across the app (`components/motion/Motion.tsx`): tab content eases in, a bar slides between tabs, onboarding steps
   ease in, main buttons lift and press. Only transform and opacity move, and `reduce motion` turns movement into a fade.
 
+## The watering forecast (Week tab)
+
+The seven-day plan is a forecast card (`components/farmer/WeekTab.tsx`, logic in `forecast.ts`): a sky painted in code that follows the
+chosen day's weather (calm, warm, hot, stormy; `node scripts/media/skies.mjs` regenerates them), the water to give in big light
+type, frosted-glass panels for the day's plan, the soil water and the weather, and a wave through the week (the water left in the
+root zone) that you tap, drag along or move through with the arrow keys. Motion is one soft entrance, a spring on the marker and a
+260 ms text swap; nothing loops, and "reduce motion" removes the movement. `node scripts/browser/week.mjs <base> <outDir> <lang> <phone|desktop>` checks it.
+
 ## Your field from space
 
 The farmer **outlines their field on the map** (tap the corners, or start from a square of N hectares). The app
