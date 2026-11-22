@@ -94,7 +94,7 @@ ok(marker && Math.abs(marker.mx - marker.tx) < 6, "the marker rests on that day'
 // every sky (the real forecast shows one or two of them; the others are forced here to look at them)
 if (lang === "en") {
   for (const mood of ["calm", "warm", "hot", "storm"]) {
-    await page.evaluate((m) => document.querySelectorAll('section[aria-labelledby="week"] div[style*="sky-"]').forEach((d) => { d.style.transition = "none"; d.style.opacity = d.style.backgroundImage.includes(`sky-${m}`) ? "1" : "0"; }), mood);
+    await page.evaluate((m) => document.querySelectorAll('section[aria-labelledby="week"] [aria-hidden="true"] > div').forEach((d) => { const bg = d.querySelector('[style*="sky-"]'); if (!bg) return; d.style.transition = "none"; d.style.opacity = bg.style.backgroundImage.includes(`sky-${m}`) ? "1" : "0"; }), mood);
     await wait(250);
     await shot(`3-sky-${mood}`);
   }

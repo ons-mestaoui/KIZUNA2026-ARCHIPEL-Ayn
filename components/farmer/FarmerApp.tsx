@@ -119,7 +119,7 @@ export function FarmerApp() {
           <TabSwap id={tab} className="lg:h-full">
             {tab === "today" && <TodayTab key={state.farm.id} state={state} refresh={refresh} fieldData={fieldData} />}
             {tab !== "today" && (
-              <div className="mx-auto max-w-[720px] pb-28 lg:h-full lg:overflow-y-auto lg:pb-8">
+              <div className={`mx-auto ${tab === "week" ? "max-w-[1760px]" : "max-w-[720px]"} pb-28 lg:h-full lg:overflow-y-auto lg:pb-8`}>
                 {tab === "week" && <WeekTab key={state.farm.id} state={state} />}
                 {tab === "farm" && <FarmTab key={state.farm.id} state={state} onSwitch={refresh} />}
                 {tab === "leaf" && <LeafTab key={state.farm.id} onAskInChat={() => setTab("ask")} />}
