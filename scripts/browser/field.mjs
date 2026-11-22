@@ -56,6 +56,20 @@ ok(!!card, "the zone card is under the decision");
 if (card) { await card.evaluate((el) => el.scrollIntoView({ block: "center" })); await wait(300); await card.screenshot({ path: `${out}/field-${lang}-1c-phone-card.png` }); await page.evaluate(() => scrollTo(0, 0)); }
 const chips = await page.evaluate(() => [...document.querySelectorAll("main button[aria-label]")].filter((b) => /^(Zone|المنطقة|区画)/.test(b.getAttribute("aria-label"))).length);
 ok(chips >= 2, "the zones are lettered on the field", `${chips} chips`);
+// the card is a headline and four chips; the detail about a zone appears only when its chip is tapped
+const picked = await page.evaluate(async () => {
+  const sel = "section[aria-labelledby='zone-card']";
+  const before = document.querySelector(`${sel} p[aria-live]`)?.innerText ?? "";
+  const b = document.querySelector(`${sel} ul button`);
+  b?.click();
+  await new Promise((r) => setTimeout(r, 250));
+  const out = { before, pressed: b?.getAttribute("aria-pressed"), line: document.querySelector(`${sel} p[aria-live]`)?.innerText ?? "", words: document.querySelector(sel)?.innerText.split(/\s+/).length ?? 0 };
+  b?.click(); // tap again: cleared
+  return out;
+});
+ok(picked.before === "" && picked.pressed === "true" && picked.line.length > 3, "tapping a zone chip says what is different about that zone", picked.line);
+ok(picked.words < 45, "the zone card stays short", `${picked.words} words`);
+await wait(300);
 const layers = await page.evaluate(() => [...document.querySelectorAll('main [role="group"] button')].map((b) => b.textContent.trim()).filter(Boolean));
 console.log("   buttons:", layers.join(" | "));
 ok((await overflow()) <= 0, "no sideways scrolling on a phone", `${await overflow()}px`);

@@ -28,12 +28,13 @@ function formatSec(s: number) {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
-export function AskTab() {
+/** `starter`: a question already written in the input (the Today tab's "Ask about today"); the farmer sends or edits it. */
+export function AskTab({ starter = "" }: { starter?: string } = {}) {
   const t = useT();
   const lang = useLang((s) => s.lang);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [text, setText] = useState("");
+  const [text, setText] = useState(starter);
   const [photo, setPhoto] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -160,13 +161,10 @@ export function AskTab() {
         setPhoto(attached);
         setError(res.status === 429 ? fmt(t.ask.errors.quota, { cap: j.cap ?? "" }) : res.status === 503 ? t.ask.errors.busy : t.ask.errors.generic);
       } else {
-        if (localAudioUrl && j.id) {
-          setAudioMap((m) => ({ ...m, [j.id]: localAudioUrl }));
-        }
+        // the farmer's own message keeps its temporary id (and its audio): the server's id belongs to the reply,
+        // and two list items with one id made React warn about duplicate keys
         setMsgs((m) => [
-          ...m.map((msg) =>
-            msg.id === temp ? { ...msg, id: j.id ?? temp, content: j.userContent ?? msg.content } : msg
-          ),
+          ...m.map((msg) => (msg.id === temp ? { ...msg, content: j.userContent ?? msg.content } : msg)),
           { id: j.id, role: "assistant", content: j.reply, saved: j.model === "saved" },
         ]);
       }
@@ -206,7 +204,15 @@ export function AskTab() {
     recorder.clear();
   }
 
-  const displayedError = error || (recorder.error === "mic_denied" ? t.ask.errors.mic : recorder.error);
+  const getErrorMessage = (errKey: string | null) => {
+    if (!errKey) return null;
+    if (errKey === "mic_denied") return t.ask.errors.mic;
+    if (errKey === "mic_insecure") return t.ask.errors.micInsecure;
+    if (errKey === "mic_unsupported") return t.ask.errors.micUnsupported;
+    if (errKey === "mic_not_found") return t.ask.errors.micNotFound;
+    return errKey;
+  };
+  const displayedError = error || getErrorMessage(recorder.error);
   const hasVoicePending = recorder.state === "recorded" && !!recorder.recorded;
   const canSend = !busy && (text.trim().length > 0 || !!photo || hasVoicePending || recorder.state === "recording");
 

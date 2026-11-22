@@ -24,7 +24,7 @@ const list = (v: string | undefined, fallback: string) =>
     .filter(Boolean);
 
 // Model IDs come from env so they can be changed without a deploy of code.
-export const CHAT_MODELS = list(process.env.GEMINI_MODELS_CHAT, "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemma-4-31b-it");
+export const CHAT_MODELS = list(process.env.GEMINI_MODELS_CHAT, "gemini-3.5-flash-lite,gemini-3.8-flash,gemini-3.1-flash-lite");
 // Vision runs in two stages: a fast model answers in ~2 s; a stronger model (slower, and often
 // overloaded on the free tier) is only asked for a second opinion when the fast one isn't sure.
 export const VISION_FAST = list(process.env.GEMINI_MODELS_VISION_FAST, "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemma-4-31b-it");

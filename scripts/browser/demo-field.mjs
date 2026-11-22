@@ -69,7 +69,9 @@ for (const [name, idx] of [["3-green", 1], ["4-water", 2], ["5-photo", 3]]) {
 await page.evaluate(() => [...document.querySelectorAll('main [role="group"]')].find((g) => g.querySelectorAll("button").length >= 3 && /(Zones|المناطق|区画)/.test(g.textContent))?.querySelectorAll("button")[0]?.click());
 await page.evaluate(() => [...document.querySelectorAll('main [role="group"][aria-label]')].find((g) => g.querySelectorAll("button").length === 2 && /\d/.test(g.textContent))?.querySelectorAll("button")[0]?.click()); // the earlier pass
 await wait(900);
-ok(/18 Jul/.test(await cardText()) || lang !== "en", "the earlier pass can be selected");
+// (the zone card no longer prints the pass date: the pass chip on the map says which pass is on show)
+const pressedPass = await page.evaluate(() => [...document.querySelectorAll('main [role="group"][aria-label] button[aria-pressed="true"]')].map((b) => b.textContent.trim()).find((t) => /\d/.test(t)) ?? "");
+ok(/18 Jul/.test(pressedPass) || lang !== "en", "the earlier pass can be selected", pressedPass);
 await shot("6-before");
 
 // the "live" scenario switches to the two latest passes

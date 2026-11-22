@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
   try {
     const [, base64] = image.split(",", 2);
-    const { diagnosis, model } = await diagnoseCropVision(base64, lang, { demo });
+    const { diagnosis, model } = await diagnoseCropVision(base64, lang, { demo, crop: "auto" });
     const [row] = await db
       .insert(schema.diagnosis)
       .values({ farmId: farm.id, thumb: thumb ?? null, lang, resultJson: JSON.stringify(diagnosis) })

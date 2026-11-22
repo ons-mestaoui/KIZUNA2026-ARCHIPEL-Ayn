@@ -54,3 +54,7 @@ next-env.d.ts
 /skills-lock.json
 /.taste-skill/
 /motion-audits/
+
+# python
+__pycache__/
+*.pyc

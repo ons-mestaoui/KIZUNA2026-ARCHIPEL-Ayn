@@ -33,13 +33,13 @@ export function StepSwap({ id, children }: { id: string | number; children: Reac
 }
 
 /** The bar under (or over) the current tab: one shared element that slides from tab to tab. The tab button must be `relative`. */
-export function TabMark({ layoutId, edge }: { layoutId: string; edge: "top" | "bottom" }) {
+export function TabMark({ layoutId, edge, className = "" }: { layoutId: string; edge: "top" | "bottom"; className?: string }) {
   return (
     <motion.span
       layoutId={layoutId}
       transition={{ type: "spring", stiffness: 520, damping: 42 }}
       aria-hidden
-      className={`absolute inset-x-3 h-[3px] rounded-full bg-ink ${edge === "top" ? "top-0" : "bottom-0"}`}
+      className={`absolute inset-x-3 h-[3px] rounded-full ${className || "bg-ink"} ${edge === "top" ? "top-0" : "bottom-0"}`}
     />
   );
 }

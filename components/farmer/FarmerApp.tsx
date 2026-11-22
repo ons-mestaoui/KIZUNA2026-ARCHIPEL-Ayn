@@ -37,6 +37,7 @@ export function FarmerApp() {
   const { data: session } = useSession();
   const { state, status, savedAt, refresh } = useFarmState();
   const [tab, setTab] = useState<TabId>("today");
+  const [starter, setStarter] = useState(""); // a question written by the Today tab, waiting in the assistant's input
   // one satellite view of the farmer's own field, shared by the Today tab and the Satellite tab
   const fieldData = useFieldData((state?.farm.polygon?.length ?? 0) >= 3, state?.farm.id);
 
@@ -50,7 +51,10 @@ export function FarmerApp() {
       key={id}
       type="button"
       aria-current={tab === id ? "page" : undefined}
-      onClick={() => setTab(id)}
+      onClick={() => {
+        setStarter("");
+        setTab(id);
+      }}
       className={`relative ${className} ${tab === id ? "font-semibold text-ink" : "text-ink-soft"}`}
     >
       {tab === id && <TabMark layoutId={`farmer-${bar}`} edge={bar === "desktop" ? "bottom" : "top"} />}
@@ -117,13 +121,24 @@ export function FarmerApp() {
         )}
         {state && (
           <TabSwap id={tab} className="lg:h-full">
-            {tab === "today" && <TodayTab key={state.farm.id} state={state} refresh={refresh} fieldData={fieldData} />}
+            {tab === "today" && (
+              <TodayTab
+                key={state.farm.id}
+                state={state}
+                refresh={refresh}
+                fieldData={fieldData}
+                onAsk={(q) => {
+                  setStarter(q);
+                  setTab("ask");
+                }}
+              />
+            )}
             {tab !== "today" && (
               <div className={`mx-auto ${tab === "week" ? "max-w-[1760px]" : "max-w-[720px]"} pb-28 lg:h-full lg:overflow-y-auto lg:pb-8`}>
                 {tab === "week" && <WeekTab key={state.farm.id} state={state} />}
-                {tab === "farm" && <FarmTab key={state.farm.id} state={state} onSwitch={refresh} />}
                 {tab === "leaf" && <LeafTab key={state.farm.id} onAskInChat={() => setTab("ask")} />}
-                {tab === "ask" && <AskTab key={state.farm.id} />}
+                {tab === "farm" && <FarmTab key={state.farm.id} state={state} onSwitch={refresh} />}
+                {tab === "ask" && <AskTab key={state.farm.id} starter={starter} />}
                 {tab === "satellite" && (
                   <SatelliteTab
                     key={state.farm.id}

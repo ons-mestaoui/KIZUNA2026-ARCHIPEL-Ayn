@@ -66,10 +66,22 @@ if (/needed today/.test(body)) {
   await wait(2000);
   ok(!/Saved: \d+ m³/.test(await text()), "undo works");
 }
+ok(await clickText("Check your soil"), "the soil check is one closed row that opens"); // optional extra: closed until wanted
+await wait(400);
 await clickText("Holds its shape");
 await wait(2000);
 ok(/The plan is updated|Thanks/.test(await text()), "squeeze test acknowledged");
 await shot("2-today-after");
+
+// the Today screen keeps to the essentials: the reasons and numbers moved to the assistant, which starts from a written question
+body = await text();
+ok(!/Solar power|Pumping, hour by hour|Show the numbers|Crop water use|Saves \d+ m³/.test(body), "Today no longer carries the energy table, weather line or satellite numbers");
+ok(await clickText("Ask about today"), "Today offers 'Ask about today'");
+await wait(1200);
+const starter = await page.evaluate(() => document.querySelector("form textarea")?.value ?? "");
+ok(/^(Why \d+ m³ today\?|Why no watering today\?)$/.test(starter), "…which opens the assistant with the question already written", starter);
+await clickText("Today", "nav button");
+await wait(800);
 
 // Week
 await clickText("Week");

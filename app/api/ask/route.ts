@@ -23,13 +23,13 @@ const body = z
     message: z.string().trim().max(1200).optional().default(""),
     image: z
       .string()
-      .max(4_000_000)
-      .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/)
+      .max(8_000_000)
+      .regex(/^data:image\/(jpeg|jpg|png|webp)(;[a-zA-Z0-9=._-]+)*;base64,[A-Za-z0-9+/=]+$/)
       .optional(),
     audio: z
       .string()
-      .max(6_000_000)
-      .regex(/^data:audio\/(webm|mp4|m4a|wav|ogg|mpeg|aac|x-m4a);base64,[A-Za-z0-9+/=]+$/)
+      .max(8_000_000)
+      .regex(/^data:audio\/[a-zA-Z0-9._-]+(;[a-zA-Z0-9=._-]+)*;base64,[A-Za-z0-9+/=]+$/)
       .optional(),
     lang: z.enum(["en", "ar", "ja"]),
   })
@@ -41,7 +41,9 @@ const UI_LANGUAGE: Record<Lang, string> = { en: "English", ar: "Tunisian Arabic 
 
 const system = (lang: Lang) => `You are "Ayn", a friendly, practical assistant for farmers. You help with irrigation, solar and other water pumps, crops, pests and the weather for THIS farm, using the farm facts below.
 
-You have access to an in-house deep learning vision tool (MobileNetV3 trained specifically for tomato diseases and Tuta absoluta in Tunisia × Japan). When the farmer uploads a leaf photo or asks about crop symptoms, the tool output is provided in your context. Use it as ground truth to explain the problem, give safe practical cultural/biological steps, and link it to their watering situation.
+You have access to an in-house deep learning vision tool (Meta AI DINOv2 Vision Transformer fine-tuned for 31 crop diseases across Tunisia and Japan: Olive, Citrus, Tomato, Potato, Pepper, Japanese Rice, Japanese Green Tea). When the farmer uploads a leaf photo or asks about crop symptoms, the tool output is provided in your context. Use it as ground truth to explain the problem, give safe practical cultural/biological steps, and link it to their watering situation.
+
+What the farmer sees, and what you explain: the app's Today screen is deliberately sparse. It shows only the amount of water for today, when to water, which zone to water first, and two buttons to log what was watered or how the soil feels. Everything behind those lines is yours to explain when asked, from the farm facts: why the plan says this amount (the root-zone water balance, the weather, rain), what limits it (basin, pump, sun), how the solar plan saves water and energy against pumping every sunny hour, and what the satellite zones mean. Greenness (NDVI) and leaf water (NDMI) come from 10 m satellite pixels: they show where plants look different, not how much water is in the soil, and a zone that already looked weak on an earlier pass may be thin canopy, young trees or a sandy patch rather than new thirst. Quote numbers only when they help, in plain words, and never contradict the plan the farmer sees.
 
 How to answer:
 - Reply in the language the farmer wrote or spoke in. The farmer can send typed messages or spoken voice messages. If they speak or write Arabic (Arabic script or Latin letters such as "3arbi"), answer in Tunisian Arabic (Derja) in Arabic script, with simple everyday words. French gets French, Japanese gets Japanese, English gets English. If the language is unclear, use ${UI_LANGUAGE[lang]}.
@@ -100,7 +102,7 @@ export async function POST(request: Request) {
     // If an image was submitted, invoke the in-house deep learning model as an expert tool!
     if (base64) {
       try {
-        const vision = await diagnoseCropVision(base64, lang, { demo });
+        const vision = await diagnoseCropVision(base64, lang, { demo, crop: "auto" });
         await db
           .insert(schema.diagnosis)
           .values({
@@ -111,16 +113,17 @@ export async function POST(request: Request) {
           })
           .catch(() => {});
 
-        toolResultContext = `\n\n[Diagnostic Tool Output - Kizuna Crop Vision MobileNetV3]:
-- Model: kizuna-mobilenetv3 (In-house PyTorch model trained for Mediterranean crops & Kizuna Hackathon)
+        toolResultContext = `\n\n[Diagnostic Tool Output - Kizuna Crop Vision DINOv2 ViT]:
+- Model: ${vision.raw.model} (In-house Meta DINOv2 Vision Transformer trained for 31 crops across Tunisia & Japan)
 - Detected Diagnosis: ${vision.diagnosis.name} (${vision.raw.prediction.class_raw})
+- Target Crop: ${vision.raw.prediction.crop}
 - Confidence: ${vision.raw.prediction.confidence_pct}% (${vision.diagnosis.confidence})
 - Severity Level: ${vision.raw.prediction.severity} (Licensed Expert Needed: ${vision.diagnosis.needsExpert ? "Yes" : "No"})
 - Observed Symptoms: ${vision.raw.prediction.symptoms}
 - Recommended Biological / IPM Treatments: ${vision.raw.prediction.biological_treatment}
 - Local Tunisian Agronomic Guidance: ${vision.raw.prediction.tunisian_advice?.voice_script || vision.diagnosis.voice}
 - Top Differential Candidates: ${vision.raw.top_3.map((x) => `${x.title} (${x.confidence_pct}%)`).join(", ")}
-Tool Directive: The farmer uploaded a leaf photo which was just analyzed by our in-house MobileNetV3 deep learning vision model. Ground your answer directly in these tool results. State the diagnosis clearly, explain what it means, provide actionable biological/cultural steps, and advise on watering. Speak warmly in the requested language (Tunisian Derja in Arabic script if Arabic).`;
+Tool Directive: The farmer uploaded a leaf photo which was just analyzed by our in-house DINOv2 Vision Transformer deep learning model (31 classes across Tunisia & Japan). Ground your answer directly in these tool results. State the diagnosis clearly, explain what it means, provide actionable biological/cultural steps, and advise on watering. Speak warmly in the requested language (Tunisian Derja in Arabic script if Arabic).`;
       } catch (err) {
         console.error("Crop vision tool execution error:", err);
       }
@@ -140,6 +143,8 @@ Tool Directive: The farmer uploaded a leaf photo which was just analyzed by our 
     const history = recent.reverse().map((m) => ({ role: m.role === "assistant" ? ("model" as const) : ("user" as const), parts: [{ text: m.content }] }));
     const fieldLine = await fieldContext(farm, state?.week[0]?.plan.grossM3 ? "irrigate" : "skip", { demo }); // satellite sentences, if a view is already cached
     const facts = `\n\nFarm facts:\n${farmContext(state, farm)}${fieldLine ? `\n${fieldLine}` : ""}${latestDiagContext}${toolResultContext}`;
+    // last in the prompt, where it is weighed most: a small model otherwise answers an English question in French or Derja
+    const answerLanguage = `\n\nAnswer language: the farmer's app is set to ${UI_LANGUAGE[lang]}. Answer in ${UI_LANGUAGE[lang]} unless the farmer's message (typed or spoken) is clearly in another language: Arabic letters get Tunisian Arabic in Arabic script, and a question in English gets English. Use the exact figures from the farm facts (the amount for today is the "Plan today" line) and keep m³ (cubic metres of water) apart from mm (millimetres in the soil).`;
 
     const userParts: Part[] = [];
     if (image && header && base64) {
@@ -164,7 +169,7 @@ Tool Directive: The farmer uploaded a leaf photo which was just analyzed by our 
       },
     ];
     const ask = (extra: string, deadlineMs: number) =>
-      generateText({ models: CHAT_MODELS, kind: demo ? "demo" : "public", system: `${system(lang)}${extra}${facts}`, contents, timeoutMs: 12_000, deadlineMs });
+      generateText({ models: CHAT_MODELS, kind: demo ? "demo" : "public", system: `${system(lang)}${extra}${facts}${answerLanguage}`, contents, timeoutMs: 12_000, deadlineMs });
 
     let { text, model } = await ask("", 30_000);
     // A question written in Arabic letters must be answered in Arabic letters, not in Latin-letter Derja ("3la war9at").

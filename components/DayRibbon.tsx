@@ -148,26 +148,6 @@ export function DayRibbon({ plan }: { plan: DailyPlan }) {
             <span>24</span>
           </div>
         </div>
-
-        <ul className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink-soft">
-          {solar && (
-            <>
-              <li className="flex items-center gap-1.5">
-                <span className="h-2 w-3 rounded-sm bg-mark-sun/30 ring-1 ring-mark-sun" /> {t.ribbon.sun}
-              </li>
-              <li className="flex items-center gap-1.5">
-                <span className="h-2 w-3 rounded-sm bg-mark-sun" />
-                {plan.pumpWindow ? fmt(t.ribbon.pump, { start: plan.pumpWindow.start, end: plan.pumpWindow.end }) : t.ribbon.pumpOff}
-              </li>
-            </>
-          )}
-          <li className="flex items-center gap-1.5">
-            <span className="h-2 w-3 rounded-sm bg-mark-water" />
-            {plan.irrigationWindows.length
-              ? fmt(t.ribbon.water, { times: plan.irrigationWindows.map((w) => w.start).join(" · ") })
-              : t.ribbon.noWater}
-          </li>
-        </ul>
       </div>
     </div>
   );

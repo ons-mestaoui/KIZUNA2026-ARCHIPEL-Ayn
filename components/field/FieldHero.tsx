@@ -41,27 +41,15 @@ const gradient = (r: Ramp) => `linear-gradient(to right, ${r.stops.map((c, i) =>
 /** What the colours mean: a gradient for the two continuous layers, three swatches for the zones. */
 function Legend({ layer }: { layer: FieldLayer }) {
   const t = useT().field.legend;
-  if (layer === "photo") return null;
+  // the zones and the photo explain themselves (the card names the first zone); only the two continuous ramps need a key
+  if (layer === "photo" || layer === "zones") return null;
   return (
     <div dir="ltr" className="rounded-xl bg-paper/90 px-2.5 py-1.5 text-[11px] leading-tight text-ink shadow-sm">
-      {layer === "zones" ? (
-        <div className="flex items-center gap-2">
-          {([[-0.8, t.zonesLow], [0, t.zonesMid], [0.8, t.zonesHigh]] as const).map(([s, label]) => (
-            <span key={label} className="flex items-center gap-1">
-              <span className="size-2.5 rounded-sm ring-1 ring-ink/15" style={{ background: toCss(zoneColor(s)) }} />
-              {label}
-            </span>
-          ))}
-        </div>
-      ) : (
-        <>
-          <div className="h-2 w-28 rounded-full ring-1 ring-ink/15" style={{ background: gradient(layer === "water" ? LEAF_WATER : GREENNESS) }} />
-          <div className="mt-0.5 flex justify-between">
-            <span>{layer === "water" ? t.waterLow : t.greenLow}</span>
-            <span>{layer === "water" ? t.waterHigh : t.greenHigh}</span>
-          </div>
-        </>
-      )}
+      <div className="h-2 w-28 rounded-full ring-1 ring-ink/15" style={{ background: gradient(layer === "water" ? LEAF_WATER : GREENNESS) }} />
+      <div className="mt-0.5 flex justify-between">
+        <span>{layer === "water" ? t.waterLow : t.greenLow}</span>
+        <span>{layer === "water" ? t.waterHigh : t.greenHigh}</span>
+      </div>
     </div>
   );
 }
@@ -238,11 +226,14 @@ export default function FieldHero({
             </button>
           ))}
         </div>
-        <p className="w-fit max-w-full truncate rounded-full bg-paper/75 px-2 py-0.5 text-[10px] leading-tight text-ink-soft" dir="ltr" translate="no">
-          {CREDIT}
-          {exag > 1 && <> · {fmt(t.field.relief, { n: exag.toFixed(1) })}</>}
+        {/* one small line: the data credit, the relief exaggeration when there is one, and that the equipment is a drawing */}
+        <p className="w-fit max-w-full rounded-xl bg-paper/75 px-2 py-0.5 text-[10px] leading-tight text-ink-soft">
+          <bdi dir="ltr" translate="no">
+            {CREDIT}
+            {exag > 1 && <> · {fmt(t.field.relief, { n: exag.toFixed(1) })}</>}
+          </bdi>
+          {equipment && <> · {t.field.equipmentNote}</>}
         </p>
-        {equipment && <p className="w-fit max-w-full truncate rounded-full bg-paper/75 px-2 py-0.5 text-[10px] leading-tight text-ink-soft">{t.field.equipmentNote}</p>}
       </div>
     </div>
   );

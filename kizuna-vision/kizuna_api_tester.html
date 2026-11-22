@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KIZUNA Nexus — Banc de Test API</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Kufi+Arabic:wght@400;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #0d1512; color: #e2e8f0; }
+    .font-arabic { font-family: 'Noto Kufi Arabic', sans-serif; }
+  </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+  <div class="max-w-5xl mx-auto space-y-6">
+    
+    <!-- HEADER -->
+    <header class="bg-emerald-950/40 border border-emerald-800/50 rounded-2xl p-6 backdrop-blur-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white text-2xl shadow-lg shadow-emerald-500/20">
+          <i class="fa-solid fa-leaf"></i>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+            KIZUNA Nexus API <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">v2.0 Vision v8</span>
+          </h1>
+          <p class="text-xs text-emerald-400/80">Plateforme de test interactif pour le Hackathon Kizuna 2026 (Tunisie × Japon)</p>
+        </div>
+      </div>
+      
+      <!-- API STATUS BADGE -->
+      <div id="statusBadge" class="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-slate-900/80 border border-slate-700 text-sm">
+        <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" id="statusDot"></span>
+        <span id="statusText" class="font-medium text-slate-300">Vérification de l'API...</span>
+      </div>
+    </header>
+
+    <!-- INSTRUCTIONS ALERT -->
+    <div class="bg-blue-950/30 border border-blue-800/40 rounded-xl p-4 text-xs text-blue-200 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <i class="fa-solid fa-circle-info text-blue-400 text-lg"></i>
+        <div>
+          <span class="font-semibold text-white">Pour faire fonctionner ce testeur :</span> 
+          Assurez-vous que l'API est lancée dans votre terminal avec : 
+          <code class="bg-blue-900/50 px-2 py-0.5 rounded text-blue-300 font-mono">py -m uvicorn main:app --reload --port 8000</code>
+        </div>
+      </div>
+      <a href="http://localhost:8000/docs" target="_blank" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition flex items-center gap-1.5 whitespace-nowrap">
+        <span>Swagger UI</span> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+      </a>
+    </div>
+
+    <!-- MAIN GRID -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <!-- GAUCHE : UPLOAD & CONTROLES -->
+      <div class="lg:col-span-5 space-y-4">
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-5">
+          <h2 class="text-base font-semibold text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-camera text-emerald-400"></i> Soumettre une Feuille
+          </h2>
+          
+          <!-- DROP ZONE -->
+          <div id="dropZone" class="border-2 border-dashed border-slate-700 hover:border-emerald-500 rounded-xl p-6 text-center cursor-pointer transition bg-slate-950/40 group">
+            <input type="file" id="fileInput" accept="image/*" class="hidden">
+            <div id="uploadPrompt" class="space-y-3">
+              <div class="w-14 h-14 mx-auto rounded-full bg-slate-800/80 group-hover:bg-emerald-950/50 flex items-center justify-center text-slate-400 group-hover:text-emerald-400 transition">
+                <i class="fa-solid fa-cloud-arrow-up text-2xl"></i>
+              </div>
+              <div>
+                <p class="text-sm font-medium text-slate-300">Cliquez ou glissez une image ici</p>
+                <p class="text-xs text-slate-500 mt-1">Tomate, Olivier, Riz Japonais, Agrumes, Pomme de terre...</p>
+              </div>
+            </div>
+            <!-- IMAGE PREVIEW -->
+            <div id="previewContainer" class="hidden relative">
+              <img id="imagePreview" src="" alt="Aperçu" class="max-h-56 mx-auto rounded-lg object-contain shadow-md border border-slate-700">
+              <button id="removeBtn" class="absolute top-2 right-2 bg-red-600/80 hover:bg-red-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs transition">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- URL TARGET & CROP SELECTOR -->
+          <div class="space-y-3">
+            <div class="space-y-1.5">
+              <label class="text-xs font-medium text-slate-400">Adresse de l'API (FastAPI) :</label>
+              <input type="text" id="apiUrlInput" value="http://localhost:8000" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500">
+            </div>
+            
+            <div class="space-y-1.5">
+              <label class="text-xs font-medium text-slate-400 flex items-center justify-between">
+                <span>Mode de Détection :</span>
+                <span class="text-[10px] text-emerald-400 font-semibold">✨ Auto-Disambiguation</span>
+              </label>
+              <select id="cropHintSelect" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer">
+                <option value="auto">🌐 100% Automatique (Intelligence Botanique Active)</option>
+                <option value="Olivier">🫒 Forcer Culture : Olivier (Zitoun)</option>
+                <option value="Tomate">🍅 Forcer Culture : Tomate (Tuta, Mildiou...)</option>
+                <option value="Riz">🌾 Forcer Culture : Riz Japonais (Ine)</option>
+                <option value="Agrumes">🍋 Forcer Culture : Agrumes (Citrus)</option>
+                <option value="Pomme de Terre">🥔 Forcer Culture : Pomme de terre</option>
+                <option value="Piment">🌶️ Forcer Culture : Piment</option>
+                <option value="Thé">🍵 Forcer Culture : Thé Vert Japonais</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- BOUTON DIAGNOSTIQUER -->
+          <button id="diagnoseBtn" disabled class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold shadow-lg shadow-emerald-900/30 transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-microchip"></i> <span>Lancer l'Inférence Vision IA</span>
+          </button>
+        </div>
+
+        <!-- EXEMPLES RAPIDES -->
+        <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-4 text-xs space-y-2">
+          <span class="text-slate-400 font-medium">31 classes répertoriées avec :</span>
+          <div class="flex flex-wrap gap-1.5 pt-1">
+            <span class="px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800 text-emerald-300">Tomate (11 dont Tuta)</span>
+            <span class="px-2 py-0.5 rounded bg-amber-950 border border-amber-800 text-amber-300">Riz Japonais (4)</span>
+            <span class="px-2 py-0.5 rounded bg-lime-950 border border-lime-800 text-lime-300">Olivier (3)</span>
+            <span class="px-2 py-0.5 rounded bg-teal-950 border border-teal-800 text-teal-300">Thé Vert Japonais (4)</span>
+            <span class="px-2 py-0.5 rounded bg-yellow-950 border border-yellow-800 text-yellow-300">Agrumes (4)</span>
+            <span class="px-2 py-0.5 rounded bg-orange-950 border border-orange-800 text-orange-300">Piment & Pomme de terre</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- DROITE : RESULTATS EN DIRECT -->
+      <div class="lg:col-span-7 space-y-4">
+        
+        <!-- PLACEHOLDER VIDE -->
+        <div id="resultsPlaceholder" class="h-full min-h-[380px] bg-slate-900/40 border border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center p-8 text-center text-slate-500">
+          <div class="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center text-3xl mb-3 text-slate-600">
+            <i class="fa-solid fa-chart-pie"></i>
+          </div>
+          <h3 class="text-base font-medium text-slate-400">Aucun diagnostic en attente</h3>
+          <p class="text-xs max-w-sm mt-1 text-slate-500">Importez une photo de feuille à gauche et lancez l'inférence pour voir le diagnostic complet et le protocole agronomique.</p>
+        </div>
+
+        <!-- RESULT CARD -->
+        <div id="resultsCard" class="hidden bg-slate-900/70 border border-slate-800 rounded-2xl p-6 space-y-6 shadow-2xl">
+          
+          <!-- TITRE & STATUT -->
+          <div class="flex items-start justify-between gap-4 border-b border-slate-800 pb-5">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span id="resCrop" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-900/50 text-emerald-300 border border-emerald-700/50">Culture</span>
+                <span id="resSeverity" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-900/50 text-red-300 border border-red-700/50">Urgence</span>
+              </div>
+              <h2 id="resTitle" class="text-xl font-bold text-white">Nom de la maladie</h2>
+              <p id="resCategory" class="text-xs text-slate-400 mt-0.5">Catégorie pathologique</p>
+            </div>
+            
+            <!-- CONFIDENCE RADIAL/BADGE -->
+            <div class="text-right">
+              <div class="text-3xl font-black text-emerald-400" id="resConfidence">--%</div>
+              <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Indice de Confiance</div>
+              <div class="text-[10px] text-slate-500 mt-0.5" id="resTime">Latence : -- ms</div>
+            </div>
+          </div>
+
+          <!-- CONSEIL VOCAL DARIJA TUNISIEN -->
+          <div class="bg-gradient-to-r from-amber-950/40 via-amber-900/20 to-transparent border border-amber-800/40 rounded-xl p-4 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-volume-high"></i> Consigne Vocale Agriculteur (Darija Tunisienne) :
+              </span>
+              <button id="speakBtn" class="text-xs px-2.5 py-1 rounded-md bg-amber-600/30 hover:bg-amber-600/50 text-amber-200 border border-amber-500/40 transition flex items-center gap-1">
+                <i class="fa-solid fa-play text-[10px]"></i> Écouter
+              </button>
+            </div>
+            <p id="resArabicSummary" class="text-lg font-arabic font-bold text-amber-200 text-right leading-relaxed" dir="rtl">
+              « ... »
+            </p>
+            <p id="resVoiceScript" class="text-xs font-arabic text-amber-300/80 text-right leading-normal" dir="rtl">
+              ...
+            </p>
+          </div>
+
+          <!-- SYMPTOMES & TRAITEMENT -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 space-y-1.5">
+              <span class="font-semibold text-slate-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-stethoscope text-emerald-400"></i> Symptômes Observés :
+              </span>
+              <p id="resSymptoms" class="text-slate-400 leading-relaxed">...</p>
+            </div>
+            <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 space-y-1.5">
+              <span class="font-semibold text-slate-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-clock-rotate-left text-amber-400"></i> Délai d'Intervention :
+              </span>
+              <p id="resUrgency" class="text-slate-400 leading-relaxed">...</p>
+            </div>
+          </div>
+
+          <!-- PROTOCOLE BIOLOGIQUE -->
+          <div class="bg-emerald-950/20 border border-emerald-800/30 rounded-xl p-4 space-y-2 text-xs">
+            <span class="font-semibold text-emerald-300 flex items-center gap-1.5">
+              <i class="fa-solid fa-shield-halved text-emerald-400"></i> Protocole de Traitement Biologique Recommandé :
+            </span>
+            <div id="resTreatment" class="text-slate-300 leading-relaxed pl-2">
+              ...
+            </div>
+          </div>
+
+          <!-- TOP 3 PREDICTIONS -->
+          <div class="space-y-2 pt-2 border-t border-slate-800">
+            <span class="text-xs font-semibold text-slate-400">Top 3 Prédictions du Modèle :</span>
+            <div id="top3List" class="space-y-1.5 text-xs">
+              <!-- Dynamique -->
+            </div>
+          </div>
+
+          <!-- JSON BRUT ACCORDION -->
+          <details class="text-xs bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <summary class="cursor-pointer text-slate-400 hover:text-slate-200 font-mono">Voir la Réponse JSON Brute</summary>
+            <pre id="jsonOutput" class="mt-2 p-3 bg-black/60 rounded-lg overflow-x-auto text-[11px] font-mono text-emerald-300"></pre>
+          </details>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const apiUrlInput = document.getElementById('apiUrlInput');
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const uploadPrompt = document.getElementById('uploadPrompt');
+    const previewContainer = document.getElementById('previewContainer');
+    const imagePreview = document.getElementById('imagePreview');
+    const removeBtn = document.getElementById('removeBtn');
+    const diagnoseBtn = document.getElementById('diagnoseBtn');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const resultsPlaceholder = document.getElementById('resultsPlaceholder');
+    const resultsCard = document.getElementById('resultsCard');
+    const speakBtn = document.getElementById('speakBtn');
+
+    let currentFile = null;
+    let currentVoiceScript = "";
+
+    // 1. Healthcheck périodique
+    async function checkHealth() {
+      const base = apiUrlInput.value.replace(/\/$/, "");
+      try {
+        const res = await fetch(`${base}/api/crop-vision/health`, { method: 'GET' });
+        if (res.ok) {
+          const data = await res.json();
+          statusDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]";
+          statusText.textContent = `API Connectée (${data.weights_size_mb} Mo - 31 classes)`;
+          statusText.className = "font-medium text-emerald-300";
+        } else {
+          throw new Error();
+        }
+      } catch (e) {
+        statusDot.className = "w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse";
+        statusText.textContent = "API Non Détectée (lancez uvicorn)";
+        statusText.className = "font-medium text-red-400";
+      }
+    }
+    checkHealth();
+    setInterval(checkHealth, 6000);
+
+    // 2. Upload & Drag-and-Drop
+    dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-emerald-500'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-emerald-500'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-emerald-500');
+      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+
+    function handleFile(file) {
+      if (!file || !file.type.startsWith('image/')) return;
+      currentFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        imagePreview.src = e.target.result;
+        uploadPrompt.classList.add('hidden');
+        previewContainer.classList.remove('hidden');
+        diagnoseBtn.disabled = false;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    removeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      currentFile = null;
+      fileInput.value = "";
+      imagePreview.src = "";
+      previewContainer.classList.add('hidden');
+      uploadPrompt.classList.remove('hidden');
+      diagnoseBtn.disabled = true;
+    });
+
+    // 3. Soumission et Inférence
+    diagnoseBtn.addEventListener('click', async () => {
+      if (!currentFile) return;
+      const base = apiUrlInput.value.replace(/\/$/, "");
+      diagnoseBtn.disabled = true;
+      diagnoseBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Inférence en cours...';
+
+      const formData = new FormData();
+      formData.append('file', currentFile);
+      const cropHint = document.getElementById('cropHintSelect')?.value || 'auto';
+      const endpointUrl = `${base}/api/crop-vision/diagnose` + (cropHint !== 'auto' ? `?crop=${encodeURIComponent(cropHint)}` : '');
+
+      try {
+        const response = await fetch(endpointUrl, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          alert("Erreur de l'API : " + (errData.detail || response.statusText));
+          return;
+        }
+
+        const data = await response.json();
+        renderResults(data);
+      } catch (err) {
+        alert("Impossible de joindre l'API sur " + base + ".\nVérifiez qu'uvicorn tourne bien dans votre terminal.");
+      } finally {
+        diagnoseBtn.disabled = false;
+        diagnoseBtn.innerHTML = '<i class="fa-solid fa-microchip"></i> <span>Lancer l\'Inférence Vision IA</span>';
+      }
+    });
+
+    function renderResults(data) {
+      resultsPlaceholder.classList.add('hidden');
+      resultsCard.classList.remove('hidden');
+
+      const pred = data.prediction;
+      document.getElementById('resTitle').textContent = pred.title;
+      document.getElementById('resCrop').textContent = pred.crop;
+      document.getElementById('resCategory').textContent = pred.category;
+      document.getElementById('resSeverity').textContent = pred.severity;
+      document.getElementById('resConfidence').textContent = pred.confidence_pct + '%';
+      document.getElementById('resTime').textContent = `Latence : ${data.inference_time_ms} ms`;
+
+      // Sévérité couleur
+      const sevEl = document.getElementById('resSeverity');
+      if (pred.severity.includes("Critique") || pred.severity.includes("Absolue")) {
+        sevEl.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-950 border border-red-800 text-red-300";
+      } else if (pred.severity.includes("Élevé")) {
+        sevEl.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-orange-950 border border-orange-800 text-orange-300";
+      } else if (pred.severity.includes("Moyen")) {
+        sevEl.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-yellow-950 border border-yellow-800 text-yellow-300";
+      } else {
+        sevEl.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-950 border border-emerald-800 text-emerald-300";
+      }
+
+      // Darija
+      document.getElementById('resArabicSummary').textContent = pred.tunisian_advice.arabic_summary;
+      document.getElementById('resVoiceScript').textContent = pred.tunisian_advice.voice_script;
+      currentVoiceScript = pred.tunisian_advice.voice_script;
+
+      // Détails
+      document.getElementById('resSymptoms').textContent = pred.symptoms;
+      document.getElementById('resUrgency').textContent = pred.urgency;
+      document.getElementById('resTreatment').innerHTML = pred.biological_treatment;
+
+      // Top 3
+      const top3Container = document.getElementById('top3List');
+      top3Container.innerHTML = "";
+      data.top_3.forEach((item, idx) => {
+        const row = document.createElement('div');
+        row.className = "flex items-center justify-between p-2 rounded-lg bg-slate-950/40 border border-slate-800/60";
+        row.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-mono text-slate-500">#${idx + 1}</span>
+            <span class="font-medium text-slate-300">${item.title}</span>
+            <span class="text-[10px] text-slate-500">(${item.crop})</span>
+          </div>
+          <span class="font-mono font-bold text-emerald-400">${item.confidence_pct}%</span>
+        `;
+        top3Container.appendChild(row);
+      });
+
+      // JSON brut
+      document.getElementById('jsonOutput').textContent = JSON.stringify(data, null, 2);
+    }
+
+    // Audio synthèse vocale
+    speakBtn.addEventListener('click', () => {
+      if (!currentVoiceScript) return;
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(currentVoiceScript);
+        utterance.lang = 'ar-SA';
+        utterance.rate = 0.95;
+        window.speechSynthesis.speak(utterance);
+      } else {
+        alert("La synthèse vocale n'est pas supportée par votre navigateur.");
+      }
+    });
+  </script>
+</body>
+</html>

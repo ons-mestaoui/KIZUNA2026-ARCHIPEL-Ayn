@@ -164,13 +164,30 @@ export function useVoiceRecorder({
     clear();
     setError(null);
 
-    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      setError("Microphone is not supported in this browser.");
+    // 1. Browsers strictly require a Secure Context (HTTPS or localhost) for microphone access
+    if (typeof window !== "undefined" && window.isSecureContext === false) {
+      setError("mic_insecure");
       return;
     }
 
+    // 2. Resolve getUserMedia across modern and legacy APIs
+    const getStream = async (): Promise<MediaStream> => {
+      if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+        return navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const nav = typeof navigator !== "undefined" ? (navigator as any) : null;
+      const legacy = nav?.getUserMedia || nav?.webkitGetUserMedia || nav?.mozGetUserMedia || nav?.msGetUserMedia;
+      if (legacy) {
+        return new Promise<MediaStream>((resolve, reject) => {
+          legacy.call(navigator, { audio: true }, resolve, reject);
+        });
+      }
+      throw new Error("NOT_SUPPORTED");
+    };
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await getStream();
       streamRef.current = stream;
 
       const mimeType = getSupportedMimeType();
@@ -258,9 +275,19 @@ export function useVoiceRecorder({
           void stop();
         }
       }, 1000);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn("Microphone access error:", err);
-      setError("mic_denied");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const e = err as any;
+      if (e?.name === "NotAllowedError" || e?.name === "PermissionDeniedError") {
+        setError("mic_denied");
+      } else if (e?.name === "NotFoundError" || e?.name === "DevicesNotFoundError") {
+        setError("mic_not_found");
+      } else if (e?.message === "NOT_SUPPORTED") {
+        setError("mic_unsupported");
+      } else {
+        setError("mic_denied");
+      }
       setState("idle");
     }
   }, [clear, lang, stop]);

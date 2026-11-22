@@ -270,6 +270,34 @@ h3 {
   }
 }
 
+@keyframes ay-laser {
+  0%, 100% {
+    top: 5%;
+    opacity: 0.5;
+  }
+  50% {
+    top: 92%;
+    opacity: 1;
+  }
+}
+.ay-laser {
+  animation: ay-laser 2.2s ease-in-out infinite;
+}
+
+@keyframes ay-radar-ping {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+.ay-radar-ping {
+  animation: ay-radar-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
 /* team portraits: a shared indigo-and-gold duotone that melts into colour on hover or focus (it also evens out four very different photo backgrounds) */
 .ay-duo img {
   filter: grayscale(1) contrast(1.06);
