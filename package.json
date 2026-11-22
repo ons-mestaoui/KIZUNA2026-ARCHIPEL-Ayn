@@ -10,7 +10,8 @@
     "test": "vitest run",
     "snapshot:weather": "node scripts/snapshot-weather.mjs",
     "check:tts": "node scripts/check-tts-voices.mjs",
-    "snapshot:field": "tsx scripts/snapshot-field.mts"
+    "snapshot:field": "tsx scripts/snapshot-field.mts",
+    "vision:server": "uvicorn kizuna-vision.main:app --port 8000 --reload"
   },
   "dependencies": {
     "@google/genai": "^3.6.1",

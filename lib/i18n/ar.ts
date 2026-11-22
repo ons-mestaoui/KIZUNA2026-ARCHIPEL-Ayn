@@ -278,6 +278,7 @@ export const ar: Dict = {
     notePlaceholder: "مثلاً: بقع صفراء منذ ثلاثة أيام",
     analyzing: "نفحص صورتك…",
     another: "افحص صورة أخرى",
+    askInChat: "ناقش في المحادثة",
     categories: {
       water_stress: "عطش (إجهاد مائي)",
       nutrient_deficiency: "جوع (نقص في المغذيات)",

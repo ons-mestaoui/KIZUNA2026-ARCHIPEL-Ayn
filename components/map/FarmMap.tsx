@@ -2,7 +2,7 @@
 
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { MapContainer, Marker, Polygon, Polyline, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import { isSimplePolygon } from "@/lib/field/geo";
 import type { LonLat } from "@/lib/field/types";
@@ -70,16 +70,25 @@ function Fly({ target }: { target: FlyTarget | null }) {
   return null;
 }
 
-/** Zoom to the whole outline once, when it becomes a finished shape on view (not while the farmer is drawing). */
+function Recenter({ lat, lon, enabled }: { lat: number | null; lon: number | null; enabled: boolean }) {
+  const map = useMap();
+  useEffect(() => {
+    if (enabled && lat !== null && lon !== null) {
+      map.setView([lat, lon], map.getZoom());
+    }
+  }, [lat, lon, enabled, map]);
+  return null;
+}
+
+/** Zoom to the whole outline when it becomes a finished shape on view or when the outline changes. */
 function FitOutline({ on, corners }: { on: boolean; corners: LonLat[] }) {
   const map = useMap();
-  const latest = useRef(corners);
+  const cornerKey = corners.map((c) => `${c[0]},${c[1]}`).join(";");
   useEffect(() => {
-    latest.current = corners;
-  });
-  useEffect(() => {
-    if (on && latest.current.length >= 3) map.fitBounds(L.latLngBounds(latest.current.map(toLatLng)), { padding: [28, 28], maxZoom: 18, animate: false });
-  }, [on, map]);
+    if (on && corners.length >= 3) {
+      map.fitBounds(L.latLngBounds(corners.map(toLatLng)), { padding: [28, 28], maxZoom: 18, animate: false });
+    }
+  }, [on, map, cornerKey, corners]);
   return null;
 }
 
@@ -159,6 +168,7 @@ export default function FarmMap({
         ))}
       <Clicker onTap={onTap} />
       <Fly target={fly} />
+      <Recenter lat={lat} lon={lon} enabled={readOnly && !finished} />
       <FitOutline on={fitOutline && finished && !editing} corners={corners} />
     </MapContainer>
   );

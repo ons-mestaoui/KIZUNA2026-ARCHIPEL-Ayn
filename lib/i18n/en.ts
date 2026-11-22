@@ -276,6 +276,7 @@ export const en = {
     notePlaceholder: "For example: yellow spots since three days",
     analyzing: "Looking at your photo…",
     another: "Check another photo",
+    askInChat: "Discuss in chat",
     categories: {
       water_stress: "Thirst (water stress)",
       nutrient_deficiency: "Hunger (missing nutrients)",

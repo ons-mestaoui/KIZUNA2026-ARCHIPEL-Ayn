@@ -35,7 +35,7 @@ const STYLE: Record<Metric, { color: string; icon: React.ReactNode; kind: "bars"
 };
 const ORDER: Metric[] = ["rain", "soil", "heat", "ndvi"];
 
-function MetricCard({ metric }: { metric: Metric }) {
+function MetricCard({ metric, farmId }: { metric: Metric; farmId?: string }) {
   const t = useT();
   const locale = useLocale();
   const m = t.satellite.metrics[metric];
@@ -46,14 +46,16 @@ function MetricCard({ metric }: { metric: Metric }) {
   const load = useCallback(async () => {
     setState("loading");
     try {
-      const res = await fetch(`/api/satellite?metric=${metric}`);
+      const url = farmId ? `/api/satellite?metric=${metric}&farmId=${encodeURIComponent(farmId)}` : `/api/satellite?metric=${metric}`;
+      const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) throw new Error(String(res.status));
       setData((await res.json()) as MetricData);
       setState("ready");
     } catch {
       setState("error");
     }
-  }, [metric]);
+  }, [metric, farmId]);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount: the card shows its loading state first
     load();
@@ -148,9 +150,23 @@ function MetricCard({ metric }: { metric: Metric }) {
   );
 }
 
-export function SatelliteTab({ lat, lon, polygon, fieldData }: { lat: number; lon: number; polygon?: LonLat[] | null; fieldData?: FieldData }) {
+export function SatelliteTab({
+  lat,
+  lon,
+  polygon,
+  fieldData,
+  farmId,
+}: {
+  lat: number;
+  lon: number;
+  polygon?: LonLat[] | null;
+  fieldData?: FieldData;
+  farmId?: string;
+}) {
   const t = useT();
   const [layer, setLayer] = useState<LayerId>("satellite");
+  const mapKey = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+
   return (
     <section aria-labelledby="sat" className="px-4 py-4">
       <h2 id="sat" className="text-[22px] font-semibold tracking-tight">
@@ -160,6 +176,7 @@ export function SatelliteTab({ lat, lon, polygon, fieldData }: { lat: number; lo
 
       <div className="relative mt-4 h-[32svh] min-h-[220px] overflow-hidden rounded-xl border border-line" dir="ltr" aria-label={t.satellite.mapTitle}>
         <FarmMap
+          key={mapKey}
           lat={lat}
           lon={lon}
           layer={layer}
@@ -185,11 +202,11 @@ export function SatelliteTab({ lat, lon, polygon, fieldData }: { lat: number; lo
         </div>
       </div>
 
-      {fieldData?.field && <FieldTrendCard field={fieldData.field} />}
+      {fieldData?.field && <FieldTrendCard key={fieldData.field.sideM} field={fieldData.field} />}
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {ORDER.map((m) => (
-          <MetricCard key={m} metric={m} />
+          <MetricCard key={`${farmId ?? mapKey}-${m}`} metric={m} farmId={farmId} />
         ))}
       </div>
 

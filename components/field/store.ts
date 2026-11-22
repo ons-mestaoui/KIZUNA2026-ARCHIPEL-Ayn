@@ -19,7 +19,7 @@ interface FieldUi {
   reset: () => void;
 }
 
-const initial = { layer: "zones" as FieldLayer, frame: null, zone: null };
+const initial = { layer: "photo" as FieldLayer, frame: null, zone: null };
 
 export const useFieldUi = create<FieldUi>((set) => ({
   ...initial,

@@ -103,6 +103,10 @@ export default function FieldHero({
   const [photo, setPhoto] = useState<CanvasImageSource | null>(null);
   const [exag, setExag] = useState(1);
 
+  useEffect(() => {
+    useFieldUi.getState().reset();
+  }, [field]);
+
   const reduceMotion = useMemo(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches, []); // the fly-in is the only animation, and it is optional
   const ground = useMemo(() => createGround(field.sideM <= 700 ? 1536 : 2048), [field.sideM]);
   useEffect(() => () => ground.texture.dispose(), [ground]);
@@ -110,6 +114,8 @@ export default function FieldHero({
   // the photo: the bundled one (demo) paints at once; the live Esri tiles replace it when they arrive
   useEffect(() => {
     let alive = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clear previous photo on field change
+    setPhoto(null);
     const ctl = new AbortController();
     if (field.photoUrl) {
       const img = new Image();

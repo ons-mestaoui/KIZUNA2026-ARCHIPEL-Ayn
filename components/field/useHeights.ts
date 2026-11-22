@@ -49,5 +49,12 @@ export function useHeights(field: FieldDTO): HeightGrid | null {
     return () => ctl.abort();
   }, [field.box, field.terrain]);
 
-  return bundled ?? (live && live.box === field.box ? live.grid : null);
+  const boxMatch =
+    live &&
+    live.box.north === field.box.north &&
+    live.box.south === field.box.south &&
+    live.box.east === field.box.east &&
+    live.box.west === field.box.west;
+
+  return bundled ?? (boxMatch ? live.grid : null);
 }

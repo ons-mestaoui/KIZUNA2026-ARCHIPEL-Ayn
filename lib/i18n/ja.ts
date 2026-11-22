@@ -278,6 +278,7 @@ export const ja: Dict = {
     notePlaceholder: "例：3日前から黄色い斑点がある",
     analyzing: "写真を確認しています…",
     another: "別の写真をチェック",
+    askInChat: "チャットで相談する",
     categories: {
       water_stress: "水不足（水ストレス）",
       nutrient_deficiency: "栄養不足",

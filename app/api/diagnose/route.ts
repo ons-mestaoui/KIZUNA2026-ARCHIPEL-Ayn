@@ -1,10 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/lib/db";
-import { farmContext } from "@/lib/server/aiContext";
-import { fieldContext } from "@/lib/server/fieldContext";
-import { diagnose } from "@/lib/server/diagnose";
-import { loadFarmState } from "@/lib/server/farmState";
+import { diagnoseCropVision } from "@/lib/server/cropVision";
 import { DEMO_EMAIL, getFarm, getUser, unauthorized } from "@/lib/server/session";
 import { CANNED_DIAGNOSIS, demoOffline } from "@/lib/server/demoCanned";
 import { DEMO_CAPS, refundQuota, takeQuota } from "@/lib/server/usage";
@@ -28,7 +25,7 @@ export async function POST(request: Request) {
 
   const parsed = body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "invalid_image" }, { status: 422 });
-  const { image, thumb, note, lang } = parsed.data;
+  const { image, thumb, lang } = parsed.data;
 
   const demo = user.email === DEMO_EMAIL;
   const q = await takeQuota(user.id, "photos", demo ? DEMO_CAPS.photos : undefined);
@@ -45,17 +42,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const state = await loadFarmState(farm).catch(() => null); // weather down → still diagnose
-    const fieldLine = await fieldContext(farm, state?.week[0]?.plan.grossM3 ? "irrigate" : "skip", { demo });
-    const [header, base64] = image.split(",", 2);
-    const { diagnosis, model } = await diagnose({
-      imageBase64: base64,
-      mimeType: header.slice(5, header.indexOf(";")),
-      note,
-      lang,
-      context: `${farmContext(state, farm)}${fieldLine ? `\n${fieldLine}` : ""}`,
-      kind: demo ? "demo" : "public",
-    });
+    const [, base64] = image.split(",", 2);
+    const { diagnosis, model } = await diagnoseCropVision(base64, lang, { demo });
     const [row] = await db
       .insert(schema.diagnosis)
       .values({ farmId: farm.id, thumb: thumb ?? null, lang, resultJson: JSON.stringify(diagnosis) })

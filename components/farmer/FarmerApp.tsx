@@ -115,14 +115,23 @@ export function FarmerApp() {
         )}
         {state && (
           <>
-            {tab === "today" && <TodayTab state={state} refresh={refresh} fieldData={fieldData} />}
+            {tab === "today" && <TodayTab key={state.farm.id} state={state} refresh={refresh} fieldData={fieldData} />}
             {tab !== "today" && (
               <div className="mx-auto max-w-[720px] pb-28 lg:h-full lg:overflow-y-auto lg:pb-8">
-                {tab === "week" && <WeekTab state={state} />}
-                {tab === "farm" && <FarmTab state={state} onSwitch={refresh} />}
-                {tab === "leaf" && <LeafTab />}
-                {tab === "ask" && <AskTab />}
-                {tab === "satellite" && <SatelliteTab lat={state.farm.lat} lon={state.farm.lon} polygon={state.farm.polygon} fieldData={fieldData} />}
+                {tab === "week" && <WeekTab key={state.farm.id} state={state} />}
+                {tab === "farm" && <FarmTab key={state.farm.id} state={state} onSwitch={refresh} />}
+                {tab === "leaf" && <LeafTab key={state.farm.id} onAskInChat={() => setTab("ask")} />}
+                {tab === "ask" && <AskTab key={state.farm.id} />}
+                {tab === "satellite" && (
+                  <SatelliteTab
+                    key={state.farm.id}
+                    farmId={state.farm.id}
+                    lat={state.farm.lat}
+                    lon={state.farm.lon}
+                    polygon={state.farm.polygon}
+                    fieldData={fieldData}
+                  />
+                )}
               </div>
             )}
           </>

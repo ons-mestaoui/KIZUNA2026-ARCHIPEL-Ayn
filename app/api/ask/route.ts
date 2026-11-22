@@ -10,6 +10,7 @@ import { loadFarmState } from "@/lib/server/farmState";
 import { DEMO_EMAIL, getFarm, getUser, unauthorized } from "@/lib/server/session";
 import { cannedAnswer, demoOffline } from "@/lib/server/demoCanned";
 import { DEMO_CAPS, refundQuota, takeQuota } from "@/lib/server/usage";
+import { diagnoseCropVision } from "@/lib/server/cropVision";
 
 export const maxDuration = 60;
 
@@ -29,12 +30,14 @@ const UI_LANGUAGE: Record<Lang, string> = { en: "English", ar: "Tunisian Arabic 
 
 const system = (lang: Lang) => `You are "Goutte d'Or", a friendly, practical assistant for farmers. You help with irrigation, solar and other water pumps, crops, pests and the weather for THIS farm, using the farm facts below.
 
+You have access to an in-house deep learning vision tool (MobileNetV3 trained specifically for tomato diseases and Tuta absoluta in Tunisia × Japan). When the farmer uploads a leaf photo or asks about crop symptoms, the tool output is provided in your context. Use it as ground truth to explain the problem, give safe practical cultural/biological steps, and link it to their watering situation.
+
 How to answer:
 - Reply in the language the farmer wrote in. If they write Arabic (Arabic script or Latin letters such as "3arbi"), answer in Tunisian Arabic (Derja) in Arabic script, with simple everyday words. French gets French, Japanese gets Japanese, English gets English. If the language is unclear, use ${UI_LANGUAGE[lang]}.
 - Keep it short: at most 5 sentences. No markdown, no bullet symbols, no emoji. It will be read aloud.
 - For weather, water balance and the plan, use ONLY the farm facts. If something is not in the facts, say you do not know instead of guessing.
-- Practical and safe: never give pesticide doses or brand names; for chemical treatment say to ask a licensed adviser (in Tunisia: the CRDA). If a plant looks sick and there is no photo yet, suggest the Leaf check photo feature or attaching a photo here.
-- If a photo is attached, say what you see, then answer the question.
+- Practical and safe: never give pesticide doses or brand names; for chemical treatment say to ask a licensed adviser (in Tunisia: the CRDA). If a plant looks sick and there is no photo yet, suggest attaching a photo here.
+- If a photo is attached and the vision tool diagnosed it, clearly state the diagnosed condition, summarize the practical actions to take, and reassure the farmer.
 - Do not greet and do not repeat what you can or cannot do: answer the question directly.
 - Only when the question has nothing to do with farming, water, pumps, crops or the weather, say in one sentence that you can only help with the farm.`;
 
@@ -69,14 +72,58 @@ export async function POST(request: Request) {
   }
 
   try {
-    const [recent, state] = await Promise.all([
+    const [recent, state, latestDiagRows] = await Promise.all([
       db.select().from(schema.chatMessage).where(eq(schema.chatMessage.farmId, farm.id)).orderBy(desc(schema.chatMessage.id)).limit(12),
       loadFarmState(farm).catch(() => null), // weather down → still answer, from the farm profile
+      db.select().from(schema.diagnosis).where(eq(schema.diagnosis.farmId, farm.id)).orderBy(desc(schema.diagnosis.id)).limit(1).catch(() => []),
     ]);
-    const history = recent.reverse().map((m) => ({ role: m.role === "assistant" ? ("model" as const) : ("user" as const), parts: [{ text: m.content }] }));
+
+    let toolResultContext = "";
     const [header, base64] = image ? image.split(",", 2) : [null, null];
+
+    // If an image was submitted, invoke the in-house deep learning model as an expert tool!
+    if (base64) {
+      try {
+        const vision = await diagnoseCropVision(base64, lang, { demo });
+        await db
+          .insert(schema.diagnosis)
+          .values({
+            farmId: farm.id,
+            thumb: image && image.length < 50_000 ? image : null,
+            lang,
+            resultJson: JSON.stringify(vision.diagnosis),
+          })
+          .catch(() => {});
+
+        toolResultContext = `\n\n[Diagnostic Tool Output - Kizuna Crop Vision MobileNetV3]:
+- Model: kizuna-mobilenetv3 (In-house PyTorch model trained for Mediterranean crops & Kizuna Hackathon)
+- Detected Diagnosis: ${vision.diagnosis.name} (${vision.raw.prediction.class_raw})
+- Confidence: ${vision.raw.prediction.confidence_pct}% (${vision.diagnosis.confidence})
+- Severity Level: ${vision.raw.prediction.severity} (Licensed Expert Needed: ${vision.diagnosis.needsExpert ? "Yes" : "No"})
+- Observed Symptoms: ${vision.raw.prediction.symptoms}
+- Recommended Biological / IPM Treatments: ${vision.raw.prediction.biological_treatment}
+- Local Tunisian Agronomic Guidance: ${vision.raw.prediction.tunisian_advice?.voice_script || vision.diagnosis.voice}
+- Top Differential Candidates: ${vision.raw.top_3.map((x) => `${x.title} (${x.confidence_pct}%)`).join(", ")}
+Tool Directive: The farmer uploaded a leaf photo which was just analyzed by our in-house MobileNetV3 deep learning vision model. Ground your answer directly in these tool results. State the diagnosis clearly, explain what it means, provide actionable biological/cultural steps, and advise on watering. Speak warmly in the requested language (Tunisian Derja in Arabic script if Arabic).`;
+      } catch (err) {
+        console.error("Crop vision tool execution error:", err);
+      }
+    }
+
+    const latestDiagContext = latestDiagRows[0]
+      ? (() => {
+          try {
+            const parsed = JSON.parse(latestDiagRows[0].resultJson) as { name: string; category: string; confidence: string };
+            return `\nLatest leaf check on farm (${new Date(latestDiagRows[0].createdAt).toLocaleDateString()}): ${parsed.name} (${parsed.category}, confidence: ${parsed.confidence}).`;
+          } catch {
+            return "";
+          }
+        })()
+      : "";
+
+    const history = recent.reverse().map((m) => ({ role: m.role === "assistant" ? ("model" as const) : ("user" as const), parts: [{ text: m.content }] }));
     const fieldLine = await fieldContext(farm, state?.week[0]?.plan.grossM3 ? "irrigate" : "skip", { demo }); // satellite sentences, if a view is already cached
-    const facts = `\n\nFarm facts:\n${farmContext(state, farm)}${fieldLine ? `\n${fieldLine}` : ""}`;
+    const facts = `\n\nFarm facts:\n${farmContext(state, farm)}${fieldLine ? `\n${fieldLine}` : ""}${latestDiagContext}${toolResultContext}`;
     const contents = [
       ...history,
       {

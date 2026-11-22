@@ -48,7 +48,11 @@ function writeCache(field: FieldDTO, farmId?: string) {
  * `savedAt` is set when what is on screen is an older saved copy.
  */
 export function useFieldData(enabled: boolean, farmId?: string): FieldData {
-  const [state, setState] = useState<{ status: FieldStatus; field: FieldDTO | null; savedAt: number | null }>({ status: "loading", field: null, savedAt: null });
+  const [state, setState] = useState<{ status: FieldStatus; field: FieldDTO | null; savedAt: number | null }>({
+    status: enabled ? "loading" : "empty",
+    field: null,
+    savedAt: null,
+  });
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -57,6 +61,10 @@ export function useFieldData(enabled: boolean, farmId?: string): FieldData {
       setState({ status: "empty", field: null, savedAt: null });
       return;
     }
+
+    // Immediately clear previous field data so the old farm's satellite view is not kept while loading
+    setState({ status: "loading", field: null, savedAt: null });
+
     const ctl = new AbortController();
     const cached = readCache(farmId);
     const fallback = () =>
@@ -66,7 +74,9 @@ export function useFieldData(enabled: boolean, farmId?: string): FieldData {
       fallback();
       return () => ctl.abort();
     }
-    fetch("/api/field", { signal: ctl.signal })
+
+    const url = farmId ? `/api/field?farmId=${encodeURIComponent(farmId)}` : "/api/field";
+    fetch(url, { cache: "no-store", signal: ctl.signal })
       .then(async (res) => {
         if (res.status === 404) {
           setState({ status: "empty", field: null, savedAt: null });
@@ -85,6 +95,7 @@ export function useFieldData(enabled: boolean, farmId?: string): FieldData {
       .catch(() => {
         if (!ctl.signal.aborted) fallback();
       });
+
     return () => ctl.abort();
   }, [enabled, attempt, farmId]);
 

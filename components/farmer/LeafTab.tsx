@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- these are the farmer's own photos as data: URLs; next/image cannot optimise them */
 
-import { Bug, Camera, CircleHelp, Droplets, ImagePlus, Leaf, Microscope, Sprout } from "lucide-react";
+import { Bug, Camera, CircleHelp, Droplets, ImagePlus, Leaf, MessageCircle, Microscope, Sprout } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Category, DiagnosisItem } from "@/lib/diagnosis-schema";
 import { whenLabel } from "@/lib/format";
@@ -30,14 +30,13 @@ const TONE: Record<Category, string> = {
 
 type Phase = "idle" | "analyzing";
 
-export function LeafTab() {
+export function LeafTab({ onAskInChat }: { onAskInChat?: (diagnosisName: string) => void } = {}) {
   const t = useT();
   const lang = useLang((s) => s.lang);
   const locale = useLocale();
   const camera = useRef<HTMLInputElement>(null);
   const gallery = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>("idle");
-  const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [current, setCurrent] = useState<DiagnosisItem | null>(null);
@@ -66,7 +65,7 @@ export function LeafTab() {
       const res = await fetch("/api/diagnose", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: prepared.image, thumb: prepared.thumb, note: note.trim() || undefined, lang }),
+        body: JSON.stringify({ image: prepared.image, thumb: prepared.thumb, lang }),
       });
       const j = await res.json().catch(() => ({}));
       if (res.status === 429) setError(fmt(t.leaf.errors.quota, { cap: j.cap ?? "" }));
@@ -76,7 +75,6 @@ export function LeafTab() {
         const item: DiagnosisItem = { id: j.id, createdAt: j.createdAt, thumb: j.thumb, result: j.result, cached: j.cached };
         setCurrent(item);
         setHistory((h) => [item, ...h]);
-        setNote("");
       }
     } catch {
       setError(t.leaf.errors.generic);
@@ -95,19 +93,7 @@ export function LeafTab() {
       </h2>
       <p className="mt-1 text-[14px] text-ink-soft">{t.leaf.intro}</p>
 
-      <label className="mt-4 grid gap-1.5 text-[15px] font-medium">
-        {t.leaf.note}
-        <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          maxLength={300}
-          rows={2}
-          placeholder={t.leaf.notePlaceholder}
-          className="w-full resize-none rounded-xl border border-line bg-white px-3.5 py-2.5 text-[16px] font-normal"
-        />
-      </label>
-
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className="mt-4 grid grid-cols-2 gap-2">
         <button
           type="button"
           disabled={phase === "analyzing"}
@@ -209,6 +195,16 @@ export function LeafTab() {
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <Speak text={r.voice} lang={lang} />
+            {onAskInChat && (
+              <button
+                type="button"
+                onClick={() => onAskInChat(r.name)}
+                className="inline-flex h-11 items-center gap-2 rounded-full border border-line bg-paper px-4 text-[14px] font-medium transition hover:bg-black/5"
+              >
+                <MessageCircle size={16} aria-hidden />
+                {t.leaf.askInChat || "Discuss in Chat"}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {

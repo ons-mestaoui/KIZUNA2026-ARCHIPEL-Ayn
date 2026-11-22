@@ -15,8 +15,9 @@ export default function FieldPanel({ data, equipment, children }: { data: FieldD
   const { status, field, savedAt, reload } = data;
 
   if (field && (status === "ready" || status === "loading")) {
+    const fieldKey = field.polygon ? field.polygon.map((p) => p.join(",")).join(";") : `${field.sideM}`;
     return (
-      <FieldHero field={field} savedAt={savedAt} equipment={equipment}>
+      <FieldHero key={fieldKey} field={field} savedAt={savedAt} equipment={equipment}>
         {children}
       </FieldHero>
     );

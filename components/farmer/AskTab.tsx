@@ -55,9 +55,16 @@ export function AskTab() {
   }
 
   async function send(question?: string) {
-    const message = (question ?? text).trim();
-    if (!message || busy) return;
+    const defaultMsg =
+      lang === "ar"
+        ? "عاوني وشوفلي هذي الورقة المريضة"
+        : lang === "ja"
+        ? "この葉の状態を診断してください"
+        : "Please diagnose this leaf and advise me";
     const attached = photo;
+    const rawMessage = (question ?? text).trim();
+    const message = rawMessage || (attached ? defaultMsg : "");
+    if (!message || busy) return;
     const temp = `tmp${++sent.current}`; // temporary id until the server saves the message
     setError(null);
     setBusy(true);
@@ -217,7 +224,7 @@ export function AskTab() {
           />
           <button
             type="submit"
-            disabled={busy || !text.trim()}
+            disabled={busy || (!text.trim() && !photo)}
             aria-label={t.ask.send}
             className="grid size-12 shrink-0 place-items-center rounded-full bg-ink text-paper disabled:opacity-40"
           >
