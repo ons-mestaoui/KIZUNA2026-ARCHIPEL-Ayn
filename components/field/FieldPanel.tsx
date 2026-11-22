@@ -4,18 +4,19 @@ import { RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 import { useT } from "@/lib/i18n/useLang";
 import FieldHero from "./FieldHero";
+import type { EquipmentInfo } from "./FieldEquipment";
 import type { FieldData } from "./useFieldData";
 
 const SKY = "linear-gradient(#c9d9e3, #eef2ee)";
 
 /** The farmer app's field view: shows whatever satellite data is on hand (fresh, a saved copy, loading or unavailable). */
-export default function FieldPanel({ data, children }: { data: FieldData; children?: ReactNode }) {
+export default function FieldPanel({ data, equipment, children }: { data: FieldData; equipment?: EquipmentInfo; children?: ReactNode }) {
   const t = useT();
   const { status, field, savedAt, reload } = data;
 
   if (field && (status === "ready" || status === "loading")) {
     return (
-      <FieldHero field={field} savedAt={savedAt}>
+      <FieldHero field={field} savedAt={savedAt} equipment={equipment}>
         {children}
       </FieldHero>
     );

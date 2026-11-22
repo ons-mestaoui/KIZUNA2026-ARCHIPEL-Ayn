@@ -379,6 +379,7 @@ export const en = {
     legend: { greenLow: "Bare", greenHigh: "Dense", waterLow: "Dry", waterHigh: "Wet", zonesLow: "Weaker", zonesMid: "Similar", zonesHigh: "Stronger" },
     credit: "Contains modified Copernicus Sentinel data. Photo © Esri, Maxar, Earthstar Geographics.",
     relief: "Relief ×{n}",
+    equipmentNote: "Equipment drawn for illustration",
     hint: "Drag to turn · pinch to zoom · tap a zone",
     series: {
       title: "Your field, pass by pass",

@@ -381,6 +381,7 @@ export const ja: Dict = {
     legend: { greenLow: "裸地", greenHigh: "密", waterLow: "乾燥", waterHigh: "湿り", zonesLow: "弱い", zonesMid: "同程度", zonesHigh: "強い" },
     credit: "Copernicus Sentinelデータ（加工済み）を含みます。写真 © Esri, Maxar, Earthstar Geographics。",
     relief: "起伏 ×{n}",
+    equipmentNote: "設備はイメージ図です",
     hint: "ドラッグで回転 · ピンチで拡大 · 区画をタップ",
     series: {
       title: "あなたの畑の推移",

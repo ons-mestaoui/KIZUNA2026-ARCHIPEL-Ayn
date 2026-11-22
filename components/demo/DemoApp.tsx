@@ -123,6 +123,7 @@ function TwinTab({ fieldData }: { fieldData: FieldData }) {
     st.zones.forEach((z, i) => (z.ndvi ?? -1) > (st.zones[best].ndvi ?? -1) && (best = i));
     return shown.zones.list[best]?.centroid ?? null;
   }, [shown]);
+  const equipment = useMemo(() => ({ plan, basinCapacityM3: parcel.basinCapacityM3, kWp: parcel.pv.kWp }), [plan, parcel]);
   const pins = useMemo(() => (sensorAt ? [{ at: sensorAt, content: <SensorPin pct={soilPct} /> }] : undefined), [sensorAt, soilPct]);
   const heatwave = scenarioId === "summer" ? fmt(t.demo.field.heatwave, { date: dayLabel(DEMO_HEATWAVE_DAY, locale, { day: "numeric", month: "short" }) }) : undefined;
 
@@ -132,7 +133,7 @@ function TwinTab({ fieldData }: { fieldData: FieldData }) {
         <div className="relative h-[42svh] min-h-[280px] overflow-hidden bg-[#dfe6ea] lg:h-auto lg:flex-1">
           <div className="absolute inset-0">
             {view === "field" && shown ? (
-              <FieldHero field={shown} pins={pins} passNote={heatwave}>
+              <FieldHero field={shown} pins={pins} passNote={heatwave} equipment={equipment}>
                 <ViewSwitch view={view} onChange={setView} />
               </FieldHero>
             ) : (

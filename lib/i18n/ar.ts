@@ -376,6 +376,7 @@ export const ar: Dict = {
     legend: { greenLow: "عارية", greenHigh: "كثيفة", waterLow: "جافة", waterHigh: "رطبة", zonesLow: "أضعف", zonesMid: "مماثلة", zonesHigh: "أقوى" },
     credit: "يتضمن بيانات سنتينل لبرنامج كوبرنيكوس بعد تعديلها. الصورة © Esri وMaxar وEarthstar Geographics.",
     relief: "التضاريس ×{n}",
+    equipmentNote: "المعدات مرسومة للتوضيح",
     hint: "اسحب للتدوير · اقرص للتقريب · المس منطقة",
     series: {
       title: "حقلك، مرورًا بعد مرور",

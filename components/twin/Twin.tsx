@@ -59,22 +59,6 @@ export function TwinCanvas({ plan, parcel, lat, lon, tz, wet }: TwinProps) {
     setShadows(window.matchMedia("(pointer: fine)").matches);
   }, []);
 
-  // play: advance the clock ~1 h per second
-  const playing = useApp((s) => s.playing);
-  useEffect(() => {
-    if (!playing) return;
-    let raf = 0;
-    let last = performance.now();
-    const tick = (now: number) => {
-      const st = useApp.getState();
-      st.setHour(st.hour + ((now - last) / 1000) * 1.0);
-      last = now;
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [playing]);
-
   return (
     <div className="relative h-full w-full">
       <Canvas

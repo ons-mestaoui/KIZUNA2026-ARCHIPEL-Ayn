@@ -10,6 +10,7 @@ import { dayLabel, whenLabel } from "@/lib/format";
 import { fmt } from "@/lib/i18n";
 import { useLocale, useT } from "@/lib/i18n/useLang";
 import { decodeField, frameIndex, scoresFor } from "./derive";
+import type { EquipmentInfo } from "./FieldEquipment";
 import { relief } from "./geometry";
 import { drawGround, hillshadeCanvas } from "./ground";
 import { loadPhoto } from "./photo";
@@ -74,6 +75,7 @@ export default function FieldHero({
   savedAt = null,
   pins,
   passNote,
+  equipment,
   children,
 }: {
   field: FieldDTO;
@@ -82,6 +84,8 @@ export default function FieldHero({
   pins?: { at: LonLat; content: React.ReactNode }[];
   /** a short note under the pass chips (the demo marks the heatwave) */
   passNote?: string;
+  /** today's plan and the size of the kit: drawn as solar panels, pump, well and basin that follow the day clock */
+  equipment?: EquipmentInfo;
   children?: React.ReactNode;
 }) {
   const t = useT();
@@ -95,6 +99,7 @@ export default function FieldHero({
   const zone = ui.zone !== null && ui.zone < zones.length ? ui.zone : null;
   const scores = useMemo(() => scoresFor(field, frameIdx), [field, frameIdx]);
   const chips = useRef<(HTMLElement | null)[]>([]);
+  const yardChips = useRef<(HTMLElement | null)[]>([]);
   const [photo, setPhoto] = useState<CanvasImageSource | null>(null);
   const [exag, setExag] = useState(1);
 
@@ -137,7 +142,7 @@ export default function FieldHero({
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ background: "linear-gradient(#c9d9e3, #eef2ee)" }}>
       <div className="absolute inset-0">
-        <FieldScene field={field} texture={ground.texture} heights={heights} chips={chips} pins={pinAt} intro={!reduceMotion} label={t.field.aria} onRelief={setExag} />
+        <FieldScene field={field} texture={ground.texture} heights={heights} chips={chips} pins={pinAt} equipment={equipment} yardChips={yardChips} intro={!reduceMotion} label={t.field.aria} onRelief={setExag} />
       </div>
 
       {/* zone chips: positioned every frame by the scene, so they follow the zones as the farmer turns the view */}
@@ -161,6 +166,14 @@ export default function FieldHero({
             </span>
           </button>
         ))}
+        {equipment && (
+          // dir="auto": "3.2 kW" stays left-to-right inside an Arabic page, Arabic lines stay right-to-left
+          <div ref={(el) => void (yardChips.current[0] = el)} aria-hidden className="absolute top-0 left-0 flex flex-col items-start gap-0.5" style={{ opacity: 0 }}>
+            <span ref={(el) => void (yardChips.current[1] = el)} dir="auto" className="twin-chip twin-chip-sun" />
+            <span ref={(el) => void (yardChips.current[2] = el)} dir="auto" className="twin-chip" />
+            <span ref={(el) => void (yardChips.current[3] = el)} dir="auto" className="twin-chip twin-chip-water" />
+          </div>
+        )}
         {pins?.map((p, i) => (
           <div key={i} ref={(el) => void (chips.current[zones.length + i] = el)} className="pointer-events-none absolute top-0 left-0" style={{ opacity: 0 }}>
             {p.content}
@@ -223,6 +236,7 @@ export default function FieldHero({
           {CREDIT}
           {exag > 1 && <> · {fmt(t.field.relief, { n: exag.toFixed(1) })}</>}
         </p>
+        {equipment && <p className="w-fit max-w-full truncate rounded-full bg-paper/75 px-2 py-0.5 text-[10px] leading-tight text-ink-soft">{t.field.equipmentNote}</p>}
       </div>
     </div>
   );

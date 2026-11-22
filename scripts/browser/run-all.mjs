@@ -29,6 +29,7 @@ const suites = [
   ["onboarding (ar)", "flow.mjs", [base, out, "ar"]],
   ["onboarding (ja)", "flow.mjs", [base, out, "ja"]],
   ["refused save explained", "save-refused.mjs", [base, out]],
+  ["kit in the field view + Play", "equipment.mjs", [base, out]],
   ["field outline (en)", "outline.mjs", [base, out, "en"]],
   ["field outline (ar)", "outline.mjs", [base, out, "ar"]],
   ["field outline (ja)", "outline.mjs", [base, out, "ja"]],

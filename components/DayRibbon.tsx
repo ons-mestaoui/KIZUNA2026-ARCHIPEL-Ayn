@@ -1,7 +1,7 @@
 "use client";
 
 import { Pause, Play } from "lucide-react";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { DailyPlan, Window } from "@/lib/engine/types";
 import { fmt } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/useLang";
@@ -32,6 +32,22 @@ export function DayRibbon({ plan }: { plan: DailyPlan }) {
   const setHour = useApp((s) => s.setHour);
   const setPlaying = useApp((s) => s.setPlaying);
   const box = useRef<HTMLDivElement>(null);
+
+  // Play: the clock runs ~1 h per second. It lives here, not in a 3D view, so Play works whichever view is showing
+  // (the diagram or the real field): both read the same clock.
+  useEffect(() => {
+    if (!playing) return;
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const st = useApp.getState();
+      st.setHour(st.hour + (now - last) / 1000);
+      last = now;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [playing]);
 
   const solar = plan.source === "solar_basin" || plan.source === "solar_direct";
   const maxPv = Math.max(1, ...plan.hours.map((h) => h.pvW));

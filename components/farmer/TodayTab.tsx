@@ -36,6 +36,7 @@ export function TodayTab({ state, refresh, fieldData }: { state: FarmStateDTO; r
   const parcel = useMemo(() => parcelFromRow(farm), [farm]);
   const plan = state.week[0].plan;
   const solar = plan.source === "solar_basin" || plan.source === "solar_direct";
+  const equipment = useMemo(() => ({ plan, basinCapacityM3: parcel.basinCapacityM3, kWp: parcel.pv.kWp }), [plan, parcel]);
   const day = state.daily.find((d) => d.date === state.today);
   const cropName = t.crops[farm.crop as keyof typeof t.crops];
 
@@ -45,7 +46,7 @@ export function TodayTab({ state, refresh, fieldData }: { state: FarmStateDTO; r
         <div className="relative h-[42svh] min-h-[280px] overflow-hidden bg-[#dfe6ea] lg:h-auto lg:flex-1">
           <div className="absolute inset-0">
             {view === "field" && hasOutline ? (
-              <FieldPanel data={fieldData}>
+              <FieldPanel data={fieldData} equipment={equipment}>
                 <ViewSwitch view={view} onChange={setView} />
               </FieldPanel>
             ) : (

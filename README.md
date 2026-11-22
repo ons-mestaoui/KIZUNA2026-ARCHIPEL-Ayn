@@ -109,6 +109,13 @@ first*, after you pour water it only says *Check zone C first*. The change betwe
 and noisy (citrus is evergreen); the strength of the demo is the **zones inside the field**, which repeat on
 every date. The field is exactly 1 ha so the pitch's numbers (80 m³ basin, 3 kWp, the savings) are unchanged.
 
+Beside the field stands the farm's **kit**: solar panels, pump house, well and storage basin (a diesel generator on a
+diesel farm), joined by pipes to drip lines across the field. It follows the day clock under the view: press **Play**
+and the sun rises, the pump starts, the basin fills and the water runs out along the drip lines into the field. The
+pad is **drawn for illustration** (the farmer never says where the equipment stands, and no real farm with a mapped
+pump and panels was found near the demo; OpenStreetMap only has a factory roof and three reservoirs there), and is
+labelled so on screen. It is left out for fields over 400 m across.
+
 The satellite data of the demo is **bundled** (`data/demo/field.json`, `public/demo/field-photo.jpg`), so the
 demo never calls Copernicus. To refresh it (needs the `CDSE_*` keys): `npm run snapshot:field`.
 

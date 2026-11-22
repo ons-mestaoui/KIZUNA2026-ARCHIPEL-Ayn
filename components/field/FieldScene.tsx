@@ -9,6 +9,8 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import type { FieldDTO, LonLat } from "@/lib/field/types";
 import { COLORS } from "@/components/twin/layout";
 import { fieldSpanM, sceneProjector } from "./derive";
+import { FieldEquipment, type EquipmentInfo } from "./FieldEquipment";
+import { PAD_M, placeYard } from "./yard";
 import { type HeightAt, buildSkirt, buildTerrain, buildWall, heightSampler, relief } from "./geometry";
 
 export interface HeightGrid {
@@ -27,6 +29,10 @@ export interface FieldSceneProps {
   chips: MutableRefObject<(HTMLElement | null)[]>;
   /** extra places to mark (the demo's soil sensor), after the zones */
   pins?: LonLat[];
+  /** the farm's solar panels, pump, well and basin, drawn on a pad beside the field and driven by the day clock */
+  equipment?: EquipmentInfo;
+  /** the DOM lines that float above the pad: index 0 is the box, 1–3 the sun, pump and basin lines */
+  yardChips?: MutableRefObject<(HTMLElement | null)[]>;
   /** play the fly-in */
   intro: boolean;
   label: string;
@@ -55,7 +61,7 @@ function useDisposable<T extends { dispose(): void }>(value: T) {
 }
 
 /** The slab of ground, the field's wall and the zone anchors, built once per payload. */
-function World({ field, texture, heights, chips, pins = NO_PINS, intro, onRelief }: Omit<FieldSceneProps, "label">) {
+function World({ field, texture, heights, chips, pins = NO_PINS, equipment, yardChips, intro, onRelief }: Omit<FieldSceneProps, "label">) {
   const { gl, camera, size } = useThree();
   const sideM = field.sideM;
   const rel = useMemo(() => (heights ? relief(heights.data, sideM) : null), [heights, sideM]);
@@ -91,20 +97,32 @@ function World({ field, texture, heights, chips, pins = NO_PINS, intro, onRelief
     texture.needsUpdate = true;
   }, [texture, gl]);
 
-  // where the camera looks: the middle of the field, on the ground
-  const target = useMemo(() => {
-    const cx = ring.reduce((s, p) => s + p[0], 0) / ring.length;
-    const cz = ring.reduce((s, p) => s + p[1], 0) / ring.length;
-    return new THREE.Vector3(cx, heightAt(cx, cz), cz);
-  }, [ring, heightAt]);
+  // the pad for the kit, beside the field (none when the field is too big for it to mean anything)
+  const spot = useMemo(() => (equipment ? placeYard(ring, sideM) : null), [equipment, ring, sideM]);
+  const emptyChips = useRef<(HTMLElement | null)[]>([]);
+
+  // everything the first view has to show: the field, and the pad when there is one
+  const bounds = useMemo(() => {
+    const xs = ring.map((p) => p[0]);
+    const zs = ring.map((p) => p[1]);
+    if (spot) {
+      xs.push(spot.at[0] - PAD_M.w / 2, spot.at[0] + PAD_M.w / 2);
+      zs.push(spot.at[1] - PAD_M.d / 2, spot.at[1] + PAD_M.d / 2);
+    }
+    const [x0, x1, z0, z1] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
+    return { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, span: Math.max(x1 - x0, z1 - z0) };
+  }, [ring, spot]);
+
+  // where the camera looks: the middle of what there is to see, on the ground
+  const target = useMemo(() => new THREE.Vector3(bounds.cx, heightAt(bounds.cx, bounds.cz), bounds.cz), [bounds, heightAt]);
 
   // how far back to stand so the field and a good slice of its surroundings fill the screen, on any shape of screen
   const fit = useMemo(() => {
-    const visible = Math.max(span * 1.6, clamp(span * 2.5, 200, sideM * 0.92)); // metres across the view at the target: the field fills about 40 % of it
+    const visible = spot ? clamp(bounds.span * 1.3, 190, sideM * 0.92) : Math.max(span * 1.6, clamp(span * 2.5, 200, sideM * 0.92)); // metres across the view at the target: the field fills about 40 % of it
     const vHalf = THREE.MathUtils.degToRad(FOV / 2);
     const hHalf = Math.atan(Math.tan(vHalf) * (size.width / Math.max(1, size.height)));
     return visible / 2 / Math.tan(Math.min(vHalf, hHalf));
-  }, [sideM, span, size.width, size.height]);
+  }, [sideM, span, spot, bounds, size.width, size.height]);
 
   // anchors for the chips: the zones, then any pins
   const anchors = useMemo(
@@ -195,6 +213,13 @@ function World({ field, texture, heights, chips, pins = NO_PINS, intro, onRelief
 
   return (
     <>
+      {spot && equipment && (
+        <>
+          <hemisphereLight args={["#ffffff", "#b9a98a", 1.5]} />
+          <directionalLight position={[-120, 220, 160]} intensity={2.4} />
+          <FieldEquipment equipment={equipment} spot={spot} ring={ring} heightAt={heightAt} chips={yardChips ?? emptyChips} />
+        </>
+      )}
       <mesh geometry={terrain}>
         <meshBasicMaterial map={texture} toneMapped={false} />
       </mesh>
